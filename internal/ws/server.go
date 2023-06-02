@@ -40,7 +40,7 @@ type Server struct {
 	chatService service.IChatService
 }
 
-func (s *Server) Init() {
+func (s *Server) Setup() {
 	handler.StartClientHandler(s.chatService, &s.clientManager, s.clientChan, s.payloadChan)
 	handler.StartPayloadHandler(&s.clientManager, &s.roomManager, s.payloadChan)
 
@@ -49,7 +49,7 @@ func (s *Server) Init() {
 		WriteBufferSize: 1024,
 	}
 
-	websocketHandler := handler.NewWebsocketHandler(upgrader, s.clientChan)
+	websocketHandler := handler.NewWebsocketHandler(upgrader, s.userService, s.clientChan)
 	route := NewWebsocketRoute(websocketHandler)
 	route.RegisterRoute(s.cfg, s.router)
 }

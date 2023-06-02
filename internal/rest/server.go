@@ -21,7 +21,7 @@ func (s *Server) registerRoutes(routes ...route.IRoute) {
 	route.V1Route(s.Router, s.Config, routes...)
 }
 
-func (s *Server) Init() {
+func (s *Server) Setup() {
 
 	userController := controller.NewUserController(s.UserService)
 	userRoute := route.NewUserRoute(userController)

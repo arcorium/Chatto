@@ -2,6 +2,7 @@ package manager
 
 import (
 	"errors"
+	"strings"
 	"sync"
 
 	"server_client_chat/internal/model"
@@ -51,7 +52,28 @@ func (m *ClientManager) GetClientById(clientId string) (*model.Client, error) {
 	return client, nil
 }
 
-func (m *ClientManager) RemoveClientByUserId(userId string) {
+func (m *ClientManager) GetClientsByUsername(username string) []*model.Client {
+	m.clientsMutex.RLock()
+	defer m.clientsMutex.RUnlock()
+
+	username = strings.ToLower(username)
+	clientMaps := make(map[string]*model.Client)
+	for _, c := range m.clients {
+		if strings.Contains(strings.ToLower(c.Username), username) {
+			clientMaps[c.UserId] = c
+		}
+	}
+
+	// get the values
+	clients := make([]*model.Client, 0, len(clientMaps))
+	for _, v := range clientMaps {
+		clients = append(clients, v)
+	}
+
+	return clients
+}
+
+func (m *ClientManager) RemoveClientsByUserId(userId string) {
 	clients := m.GetClientsByUserId(userId)
 	if len(clients) == 0 {
 		return

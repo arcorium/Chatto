@@ -13,6 +13,7 @@ import (
 type AppConfig struct {
 	Ip                 string `mapstructure:"LISTEN_IP"`
 	Port               string `mapstructure:"LISTEN_PORT"`
+	Address            string
 	UserDatabaseDriver string `mapstructure:"USER_DB_DRIVER"`
 	UserDatabaseURI    string `mapstructure:"USER_DB_URI"`
 
@@ -42,6 +43,7 @@ func LoadConfig(path string) (AppConfig, error) {
 
 	var conf AppConfig
 	err := viper.Unmarshal(&conf)
+	conf.Address = conf.Ip + ":" + conf.Port
 
 	if len(conf.UserDatabaseDriver) == 0 {
 		return conf, errors.New("database driver should not be absent, set DB_DRIVER on env")

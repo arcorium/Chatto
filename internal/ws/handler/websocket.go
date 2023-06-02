@@ -2,22 +2,27 @@ package handler
 
 import (
 	"log"
+	"net/http"
 
 	"server_client_chat/internal/model"
 	"server_client_chat/internal/rest/middleware"
+	"server_client_chat/internal/service"
 	"server_client_chat/internal/util"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
-func NewWebsocketHandler(upgrader websocket.Upgrader, client chan<- *model.Client) WebsocketHandler {
-	return WebsocketHandler{upgrader: upgrader, client: client}
+func NewWebsocketHandler(upgrader websocket.Upgrader, userService service.IUserService, client chan<- *model.Client) WebsocketHandler {
+	return WebsocketHandler{upgrader: upgrader, userService: userService, client: client}
 }
 
 type WebsocketHandler struct {
 	upgrader websocket.Upgrader
-	client   chan<- *model.Client
+
+	userService service.IUserService
+
+	client chan<- *model.Client
 }
 
 func (w *WebsocketHandler) ServeWebsocket(ctx *gin.Context) {
@@ -30,7 +35,13 @@ func (w *WebsocketHandler) ServeWebsocket(ctx *gin.Context) {
 	// Handle new client
 	details, _ := util.GetContextValue[model.AccessTokenClaims](middleware.KEY_JWT_CLAIMS, ctx)
 
-	client := model.NewClient(details.UserId, model.ClientStatusRegister, conn)
+	user, cerr := w.userService.FindUserById(details.UserId)
+	if cerr.IsError() {
+		model.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil)
+		return
+	}
+
+	client := model.NewClient(user.UserId, user.Username, user.Role, model.ClientStatusRegister, conn)
 	w.RegisterNewClient(&client)
 	// Let the connection done
 }

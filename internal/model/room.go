@@ -92,25 +92,25 @@ func (r *Room) BroadcastPayloadExceptClientId(payload *Payload, clientId string)
 	}
 }
 
-// PrivateChat Used for user to user chat, server will create the room and set the private into true
-type PrivateChat struct {
+// CreatePrivateChatPayload Used for user to user chat, server will create the room and set the private into true
+type CreatePrivateChatPayload struct {
 	Opponent string `json:"opponent"`
 }
 
-// CreateRoom Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
-type CreateRoom struct {
-	Name    string   `json:"name"`
-	Private bool     `json:"private"`
-	Members []string `json:"members,omitempty"` // Initial members. TODO: Members should be on sender friends
+// CreateRoomPayload Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
+type CreateRoomPayload struct {
+	Name      string   `json:"name"`
+	Private   bool     `json:"private"`
+	MemberIds []string `json:"members,omitempty"` // Initial members. TODO: MemberIds should be on sender friends
 }
 
-// JoinRoom Used to join room, room by the roomId should check the private
-type JoinRoom struct {
+// JoinRoomPayload Used to join room, room by the roomId should check the private
+type JoinRoomPayload struct {
 	RoomId string `json:"room_id"`
 }
 
-// InviteRoom Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
-type InviteRoom struct {
+// InviteRoomPayload Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
+type InviteRoomPayload struct {
 	RoomId   string   `json:"room_id"`
 	Receiver []string `json:"receiver"`
 }

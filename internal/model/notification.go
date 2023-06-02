@@ -16,20 +16,21 @@ const (
 	NotifLeaveRoom
 )
 
-func NewNotificationPayload(notification *Notification) *Payload {
+func NewNotificationPayload(client *Client, notification *Notification) *Payload {
 	return &Payload{
 		Type:     PayloadNotification,
-		ClientId: "",
+		ClientId: client.Id,
 		Data: NotificationRespond{
 			Type:      notification.Type,
-			Sender:    "",
+			SenderId:  client.UserId,
+			Sender:    client.Username,
 			Message:   notification.Message,
 			Timestamp: notification.Timestamp,
 		},
 	}
 }
 
-func NewNotification(senderUserId string, receiverId string, notifType NotificationType, message ...string) *Notification {
+func NewNotification(receiverId string, notifType NotificationType, message ...string) *Notification {
 	notif := &Notification{
 		Type:     notifType,
 		Receiver: receiverId,
@@ -39,10 +40,6 @@ func NewNotification(senderUserId string, receiverId string, notifType Notificat
 	}
 	notif.Populate()
 	return notif
-}
-
-func NewServerNotification(receiverId string, notifType NotificationType, message ...string) *Notification {
-	return NewNotification("server", receiverId, notifType, message...)
 }
 
 type Notification struct {
@@ -56,6 +53,7 @@ type Notification struct {
 // NotificationRespond Used as respond to websocket client
 type NotificationRespond struct {
 	Type      NotificationType `json:"type"`
+	SenderId  string           `json:"sender_id,omitempty"`
 	Sender    string           `json:"sender,omitempty"`
 	Message   string           `json:"message,omitempty"`
 	Timestamp int64            `json:"timestamp"`

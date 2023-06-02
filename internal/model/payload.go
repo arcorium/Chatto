@@ -11,6 +11,7 @@ const (
 	PayloadCreateRoom   = "create-room"
 	PayloadJoinRoom     = "join-room"
 	PayloadLeaveRoom    = "leave-room"
+	PayloadGetUsers     = "get-users"
 	PayloadError        = "error"
 )
 

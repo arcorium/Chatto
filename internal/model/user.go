@@ -20,15 +20,43 @@ type User struct {
 }
 
 type UserResponse struct {
-	Id       string `json:"id"`
+	UserId   string `json:"id"`
 	Username string `json:"username"`
 	Role     Role   `json:"role"`
 }
 
 func NewUserResponse(user *User) UserResponse {
 	return UserResponse{
-		Id:       user.Id,
+		UserId:   user.Id,
 		Username: user.Name,
 		Role:     user.Role,
 	}
+}
+
+func NewUserResponsePayload(self *Client, clients []*Client) Payload {
+	payload := Payload{
+		Type:     PayloadGetUsers,
+		ClientId: self.Id,
+	}
+
+	userResponses := make([]UserResponse, 0, len(clients))
+	for _, c := range clients {
+		// Prevent to response itself
+		if c.UserId == self.UserId {
+			continue
+		}
+
+		userResponses = append(userResponses, UserResponse{
+			UserId:   c.UserId,
+			Username: c.Username,
+			Role:     c.Role,
+		})
+	}
+	payload.Data = userResponses
+
+	return payload
+}
+
+type GetUserPayload struct {
+	Username string
 }

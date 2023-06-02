@@ -74,10 +74,11 @@ func (a *Application) openRedisDatabase() (*redis.Client, error) {
 func (a *Application) Start() {
 	db, err := a.openDatabase()
 	if err != nil {
-		return
+		log.Fatalln(err)
 	}
 	redisDb, err := a.openRedisDatabase()
 	if err != nil {
+		log.Fatalln(err)
 	}
 
 	userRepo := repository.NewUserRepository(db)
@@ -96,11 +97,11 @@ func (a *Application) Start() {
 		UserService: &userService,
 		AuthService: &authService,
 	}
-	restServer.Init()
+	restServer.Setup()
 
 	// Handle Websocket routes
 	wsServer := ws.NewWebsocketServer(a.Config, a.App, &userService, &authService, &chatService)
-	wsServer.Init()
+	wsServer.Setup()
 
-	log.Fatalln(a.App.Run(a.Config.Ip + ":" + a.Config.Port))
+	log.Fatalln(a.App.Run(a.Config.Address))
 }

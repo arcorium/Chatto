@@ -10,20 +10,13 @@ func NewMessagePayload(client *Client, message *Message) *Payload {
 	return &Payload{
 		Type: PayloadMessage,
 		Data: MessageRespond{
-			Sender:    client.UserId,
+			RoomId:    message.Receiver,
+			SenderId:  client.UserId,
+			Sender:    client.Username,
 			Message:   message.Message,
 			Timestamp: message.Timestamp,
 		},
 	}
-}
-
-func NewMessage(receiver string, message string) *Message {
-	msg := &Message{
-		Receiver: receiver,
-		Message:  message,
-	}
-	msg.Populate()
-	return msg
 }
 
 type Message struct {
@@ -34,6 +27,8 @@ type Message struct {
 }
 
 type MessageRespond struct {
+	RoomId    string `json:"room_id"`
+	SenderId  string `json:"sender_id"`
 	Sender    string `json:"sender"`
 	Message   string `json:"message"`
 	Timestamp int64  `json:"timestamp"`
