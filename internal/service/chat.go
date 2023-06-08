@@ -1,8 +1,8 @@
 package service
 
 import (
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/repository"
+	"chatto/internal/model"
+	"chatto/internal/repository"
 )
 
 func NewChatService(chatRepository repository.ChatRepository) ChatService {

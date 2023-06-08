@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"server_client_chat/internal"
-	"server_client_chat/internal/config"
+	"chatto/internal"
+	"chatto/internal/config"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -13,15 +13,14 @@ import (
 func main() {
 	workDir, err := os.Getwd()
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatalln(err)
 	}
 
 	cfg, err := config.LoadConfig(workDir)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	server := internal.NewApp(&cfg)
+	app := internal.NewApp(&cfg)
 
-	server.Start()
+	app.Start()
 }

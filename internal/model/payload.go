@@ -7,7 +7,8 @@ import (
 const (
 	PayloadMessage      = "message"
 	PayloadNotification = "notification"
-	PayloadStartChat    = "start-chat"
+	PayloadPrivateChat  = "private-chat"
+	PayloadRoomChat     = "room-chat"
 	PayloadCreateRoom   = "create-room"
 	PayloadJoinRoom     = "join-room"
 	PayloadLeaveRoom    = "leave-room"
@@ -21,11 +22,11 @@ func Decode[T any](bytes []byte) (T, error) {
 	return t, err
 }
 
-func NewErrorResponsePayload(message string) Payload {
+func NewErrorPayload(message string) Payload {
 	return Payload{
 		Type: PayloadError,
 		Data: struct {
-			Message string `json:"message"`
+			string `json:"message"`
 		}{message},
 	}
 }

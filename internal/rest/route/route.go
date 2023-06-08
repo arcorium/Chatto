@@ -1,7 +1,7 @@
 package route
 
 import (
-	"server_client_chat/internal/config"
+	"chatto/internal/config"
 
 	"github.com/gin-gonic/gin"
 )

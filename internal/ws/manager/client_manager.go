@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 )
 
 type ClientList map[string]*model.Client
@@ -13,20 +13,20 @@ type ClientList map[string]*model.Client
 func NewClientManager() ClientManager {
 	return ClientManager{
 		clientsMutex: sync.RWMutex{},
-		clients:      make(ClientList),
+		Clients:      make(ClientList),
 	}
 }
 
 type ClientManager struct {
 	clientsMutex sync.RWMutex
-	clients      ClientList
+	Clients      ClientList
 }
 
 func (m *ClientManager) AddClients(clients ...*model.Client) {
 	m.clientsMutex.Lock()
 	defer m.clientsMutex.Unlock()
 	for _, c := range clients {
-		m.clients[c.Id] = c
+		m.Clients[c.Id] = c
 	}
 }
 
@@ -34,7 +34,7 @@ func (m *ClientManager) GetClientsByUserId(userId string) []*model.Client {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
 	clients := make([]*model.Client, 0, 10)
-	for _, c := range m.clients {
+	for _, c := range m.Clients {
 		if c.UserId == userId {
 			clients = append(clients, c)
 		}
@@ -45,7 +45,7 @@ func (m *ClientManager) GetClientsByUserId(userId string) []*model.Client {
 func (m *ClientManager) GetClientById(clientId string) (*model.Client, error) {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
-	client, ok := m.clients[clientId]
+	client, ok := m.Clients[clientId]
 	if !ok {
 		return nil, errors.New("client not found")
 	}
@@ -58,7 +58,7 @@ func (m *ClientManager) GetClientsByUsername(username string) []*model.Client {
 
 	username = strings.ToLower(username)
 	clientMaps := make(map[string]*model.Client)
-	for _, c := range m.clients {
+	for _, c := range m.Clients {
 		if strings.Contains(strings.ToLower(c.Username), username) {
 			clientMaps[c.UserId] = c
 		}
@@ -81,7 +81,7 @@ func (m *ClientManager) RemoveClientsByUserId(userId string) {
 
 	m.clientsMutex.Lock()
 	for _, c := range clients {
-		delete(m.clients, c.Id)
+		delete(m.Clients, c.Id)
 	}
 	m.clientsMutex.Unlock()
 }
@@ -93,6 +93,6 @@ func (m *ClientManager) RemoveClientById(clientId string) {
 		return
 	}
 	m.clientsMutex.Lock()
-	delete(m.clients, client.Id)
+	delete(m.Clients, client.Id)
 	m.clientsMutex.Unlock()
 }

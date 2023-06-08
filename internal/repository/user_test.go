@@ -5,14 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 

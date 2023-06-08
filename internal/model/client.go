@@ -37,7 +37,7 @@ type Client struct {
 	Status   ClientStatus    `json:"status"`
 	Rooms    []string        `json:"groups"` // group_ids
 
-	IncomingPayload chan *Payload `json:"-"`
+	IncomingPayload chan *Payload
 }
 
 func (c *Client) SendPayload(payload *Payload) {

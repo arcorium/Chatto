@@ -1,9 +1,9 @@
 package ws
 
 import (
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/rest/middleware"
-	"server_client_chat/internal/ws/handler"
+	"chatto/internal/config"
+	"chatto/internal/rest/middleware"
+	"chatto/internal/ws/handler"
 
 	"github.com/gin-gonic/gin"
 )

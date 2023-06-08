@@ -1,4 +1,4 @@
-module server_client_chat
+module chatto
 
 go 1.20
 

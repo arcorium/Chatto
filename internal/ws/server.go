@@ -1,11 +1,11 @@
 package ws
 
 import (
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/service"
-	"server_client_chat/internal/ws/handler"
-	"server_client_chat/internal/ws/manager"
+	"chatto/internal/config"
+	"chatto/internal/model"
+	"chatto/internal/service"
+	"chatto/internal/ws/handler"
+	"chatto/internal/ws/manager"
 
 	"github.com/gorilla/websocket"
 

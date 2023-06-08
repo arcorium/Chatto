@@ -58,5 +58,5 @@ func NewUserResponsePayload(self *Client, clients []*Client) Payload {
 }
 
 type GetUserPayload struct {
-	Username string
+	Username string `json:"username"`
 }

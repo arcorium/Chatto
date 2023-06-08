@@ -1,13 +1,14 @@
 package controller
 
 import (
+	"chatto/internal/constant"
 	"log"
 	"net/http"
 
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/rest/middleware"
-	"server_client_chat/internal/service"
-	"server_client_chat/internal/util"
+	"chatto/internal/model"
+	"chatto/internal/rest/middleware"
+	"chatto/internal/service"
+	"chatto/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -94,7 +95,7 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 	var token model.AccessToken
 	if err := ctx.ShouldBindJSON(&token); err != nil {
 		log.Println("Error Refresh Token: ", err)
-		util.ErrorResponse(ctx, http.StatusBadRequest, util.ERR_BODY_REQUEST_MISSING)
+		util.ErrorResponse(ctx, http.StatusBadRequest, constant.ERR_BODY_REQUEST_MISSING)
 		return
 	}
 

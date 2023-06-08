@@ -1,13 +1,14 @@
 package service
 
 import (
+	"chatto/internal/constant"
 	"log"
 	"net/http"
 
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/repository"
-	"server_client_chat/internal/util"
+	"chatto/internal/config"
+	"chatto/internal/model"
+	"chatto/internal/repository"
+	"chatto/internal/util"
 
 	"github.com/google/uuid"
 )
@@ -25,7 +26,7 @@ func (u *UserService) FindUserById(id string) (model.UserResponse, CustomError) 
 	user, err := u.repo.FindUserById(id)
 	if err != nil {
 		log.Println(err)
-		return model.UserResponse{}, NewError(http.StatusBadRequest, util.ERR_USER_NOT_FOUND)
+		return model.UserResponse{}, NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
 	}
 	return model.NewUserResponse(user), NoError()
 }
@@ -34,7 +35,7 @@ func (u *UserService) UpdateUserById(id string, user *model.User) CustomError {
 	err := u.repo.UpdateUserById(id, user)
 	if err != nil {
 		log.Println(err)
-		return NewError(http.StatusBadRequest, util.ERR_USER_UPDATE)
+		return NewError(http.StatusBadRequest, constant.ERR_USER_UPDATE)
 	}
 	return NoError()
 }
@@ -43,7 +44,7 @@ func (u *UserService) FindUsers() ([]model.UserResponse, CustomError) {
 	users, err := u.repo.FindUsers()
 	if err != nil {
 		log.Println(err)
-		return nil, NewError(http.StatusBadRequest, util.ERR_USER_NOT_FOUND)
+		return nil, NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
 	}
 
 	usersResponse := make([]model.UserResponse, 0)
@@ -59,7 +60,7 @@ func (u *UserService) CreateUser(user *model.User) CustomError {
 	password, err := util.HashPassword(user.Password)
 	if err != nil {
 		log.Println(err)
-		return NewError(http.StatusBadRequest, util.ERR_USER_CREATE)
+		return NewError(http.StatusBadRequest, constant.ERR_USER_CREATE)
 	}
 	user.Password = password
 
@@ -70,7 +71,7 @@ func (u *UserService) CreateUser(user *model.User) CustomError {
 func (u *UserService) RemoveUserById(id string) CustomError {
 	err := u.repo.RemoveUserById(id)
 	if err != nil {
-		return NewError(http.StatusBadRequest, util.ERR_USER_REMOVE)
+		return NewError(http.StatusBadRequest, constant.ERR_USER_REMOVE)
 	}
 	return NoError()
 }

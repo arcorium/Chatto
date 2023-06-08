@@ -1,10 +1,10 @@
 package rest
 
 import (
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/rest/controller"
-	"server_client_chat/internal/rest/route"
-	"server_client_chat/internal/service"
+	"chatto/internal/config"
+	"chatto/internal/rest/controller"
+	"chatto/internal/rest/route"
+	"chatto/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

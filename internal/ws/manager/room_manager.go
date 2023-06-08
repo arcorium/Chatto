@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 )
 
 type RoomList map[string]*model.Room

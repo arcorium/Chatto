@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 
 	"github.com/redis/go-redis/v9"
 )

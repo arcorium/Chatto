@@ -1,12 +1,13 @@
 package middleware
 
 import (
+	"chatto/internal/constant"
 	"errors"
 	"net/http"
 	"strings"
 
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/util"
+	"chatto/internal/model"
+	"chatto/internal/util"
 
 	"github.com/golang-jwt/jwt"
 
@@ -46,14 +47,14 @@ func (a *TokenValidationMiddleware) Handle() gin.HandlerFunc {
 		// Set claims on context
 		mapClaims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, util.ERR_TOKEN_FORMAT, nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
 			return
 		}
 
 		userId := mapClaims["user_id"]
 		refreshId := mapClaims["refresh_id"]
 		if userId == nil || refreshId == nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, util.ERR_TOKEN_FORMAT, nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
 			return
 		}
 
@@ -78,12 +79,12 @@ func (a *TokenValidationMiddleware) parseToken(fullToken string) (*jwt.Token, er
 
 func (a *TokenValidationMiddleware) splitHeaderValue(value string) (string, string, error) {
 	if len(value) == 0 {
-		return "", "", errors.New(util.ERR_NO_ACCESS_TOKEN)
+		return "", "", errors.New(constant.ERR_NO_ACCESS_TOKEN)
 	}
 
 	splitData := strings.Split(value, " ")
 	if len(splitData) != 2 {
-		return "", "", errors.New(util.ERR_TOKEN_FORMAT)
+		return "", "", errors.New(constant.ERR_TOKEN_FORMAT)
 	}
 
 	return splitData[0], splitData[1], nil
@@ -91,7 +92,7 @@ func (a *TokenValidationMiddleware) splitHeaderValue(value string) (string, stri
 
 func (a *TokenValidationMiddleware) validateToken(token *jwt.Token) error {
 	if token.Method.Alg() != a.Config.SigningType {
-		return errors.New(util.ERR_TOKEN_FORMAT)
+		return errors.New(constant.ERR_TOKEN_FORMAT)
 	}
 	return nil
 }

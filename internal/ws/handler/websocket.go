@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/rest/middleware"
-	"server_client_chat/internal/service"
-	"server_client_chat/internal/util"
+	"chatto/internal/model"
+	"chatto/internal/rest/middleware"
+	"chatto/internal/service"
+	"chatto/internal/util"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"

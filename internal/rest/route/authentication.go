@@ -1,9 +1,9 @@
 package route
 
 import (
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/rest/controller"
-	"server_client_chat/internal/rest/middleware"
+	"chatto/internal/config"
+	"chatto/internal/rest/controller"
+	"chatto/internal/rest/middleware"
 
 	"github.com/gin-gonic/gin"
 )

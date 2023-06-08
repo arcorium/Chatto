@@ -92,11 +92,6 @@ func (r *Room) BroadcastPayloadExceptClientId(payload *Payload, clientId string)
 	}
 }
 
-// CreatePrivateChatPayload Used for user to user chat, server will create the room and set the private into true
-type CreatePrivateChatPayload struct {
-	Opponent string `json:"opponent"`
-}
-
 // CreateRoomPayload Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
 type CreateRoomPayload struct {
 	Name      string   `json:"name"`

@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 )
 
 type CustomError struct {

@@ -1,7 +1,7 @@
 package util
 
 import (
-	"server_client_chat/internal/model"
+	"chatto/internal/model"
 
 	"github.com/gin-gonic/gin"
 )

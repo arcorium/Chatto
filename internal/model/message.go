@@ -1,15 +1,26 @@
 package model
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	"time"
 )
 
-func NewMessagePayload(client *Client, message *Message) *Payload {
-	return &Payload{
-		Type: PayloadMessage,
-		Data: MessageRespond{
+func NewPrivateMessagePayload(client *Client, message *Message) Payload {
+	return Payload{
+		Type: PayloadPrivateChat,
+		Data: PrivateMessage{
+			SenderId:  client.UserId,
+			Sender:    client.Username,
+			Message:   message.Message,
+			Timestamp: message.Timestamp,
+		},
+	}
+}
+
+func NewRoomMessagePayload(client *Client, message *Message) Payload {
+	return Payload{
+		Type: PayloadRoomChat,
+		Data: RoomMessage{
 			RoomId:    message.Receiver,
 			SenderId:  client.UserId,
 			Sender:    client.Username,
@@ -19,27 +30,39 @@ func NewMessagePayload(client *Client, message *Message) *Payload {
 	}
 }
 
-type Message struct {
-	Id        string `json:"id,omitempty"`
-	Receiver  string `json:"receiver"`
-	Message   string `json:"message"`
-	Timestamp int64  `json:"timestamp,omitempty"`
+func NewMessage(message *IncomeMessage) *Message {
+	return &Message{
+		// Check id
+		Id:        uuid.NewString(),
+		Receiver:  message.Receiver,
+		Message:   message.Message,
+		Timestamp: time.Now().Unix(),
+	}
 }
 
-type MessageRespond struct {
+type Message struct {
+	Id        string `json:"id"`
+	Receiver  string `json:"receiver"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"ts"`
+}
+
+type IncomeMessage struct {
+	Receiver string `json:"receiver"`
+	Message  string `json:"message"`
+}
+
+type PrivateMessage struct {
+	SenderId  string `json:"sender_id"`
+	Sender    string `json:"sender"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"ts"`
+}
+
+type RoomMessage struct {
 	RoomId    string `json:"room_id"`
 	SenderId  string `json:"sender_id"`
 	Sender    string `json:"sender"`
 	Message   string `json:"message"`
-	Timestamp int64  `json:"timestamp"`
-}
-
-func (m *Message) Populate() {
-	// Check id
-	_, err := uuid.Parse(m.Id)
-	if err != nil {
-		m.Id = uuid.NewString()
-	}
-
-	m.Timestamp = time.Now().Unix()
+	Timestamp int64  `json:"ts"`
 }

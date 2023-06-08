@@ -1,13 +1,13 @@
 package handler
 
 import (
+	"chatto/internal/constant"
 	"log"
 	"time"
 
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/service"
-	"server_client_chat/internal/util"
-	"server_client_chat/internal/ws/manager"
+	"chatto/internal/model"
+	"chatto/internal/service"
+	"chatto/internal/ws/manager"
 
 	"github.com/gorilla/websocket"
 )
@@ -39,8 +39,8 @@ func (c *ClientHandler) ClientHandle() {
 				c.registerClient(client)
 				go c.ClientReadHandle(client)
 				go c.ClientWriteHandle(client)
-			case model.ClientStatusUnregister:
-				c.unregisterClient(client)
+				//case model.ClientStatusUnregister:
+				//	c.unregisterClient(client)
 			}
 		}
 	}
@@ -55,8 +55,8 @@ func (c *ClientHandler) ClientReadHandle(client *model.Client) {
 	}()
 
 	// TODO: Handle read timeout
-	client.Conn.SetReadLimit(util.CLIENT_READ_LIMIT_SIZE)
-	err := client.Conn.SetReadDeadline(time.Now().Add(util.CLIENT_READ_LIMIT_TIME))
+	client.Conn.SetReadLimit(constant.CLIENT_READ_LIMIT_SIZE)
+	err := client.Conn.SetReadDeadline(time.Now().Add(constant.CLIENT_READ_LIMIT_TIME))
 	if err != nil {
 		log.Println(err)
 		return
@@ -66,13 +66,13 @@ func (c *ClientHandler) ClientReadHandle(client *model.Client) {
 		var payload model.Payload
 		err = client.Conn.ReadJSON(&payload)
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, 10054) {
 				client.Status = model.ClientStatusUnregister
 				c.unregisterClient(client)
 				break
 			}
-			// TODO: Give response to client that the message is not sent
-			continue
+			// Response error to client
+			payload = model.NewErrorPayload(constant.ERR_BAD_PAYLOAD)
 		}
 		payload.Populate(client)
 		c.payload <- &payload
@@ -87,9 +87,10 @@ func (c *ClientHandler) ClientWriteHandle(client *model.Client) {
 		case msg := <-client.IncomingPayload:
 			err := client.Conn.WriteJSON(msg)
 			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
 					break
 				}
+				log.Println("Client ", *client, " Write Error: ", err)
 				continue
 			}
 		}

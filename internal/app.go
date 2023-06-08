@@ -6,12 +6,12 @@ import (
 	"errors"
 	"log"
 
-	"server_client_chat/internal/config"
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/repository"
-	"server_client_chat/internal/rest"
-	"server_client_chat/internal/service"
-	"server_client_chat/internal/ws"
+	"chatto/internal/config"
+	"chatto/internal/model"
+	"chatto/internal/repository"
+	"chatto/internal/rest"
+	"chatto/internal/service"
+	"chatto/internal/ws"
 
 	"github.com/redis/go-redis/v9"
 

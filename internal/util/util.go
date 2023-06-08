@@ -1,6 +1,7 @@
 package util
 
 import (
+	"chatto/internal/constant"
 	"context"
 	"errors"
 
@@ -10,9 +11,9 @@ import (
 
 func NewTimeoutContext(parent ...context.Context) (context.Context, context.CancelFunc) {
 	if len(parent) == 0 {
-		return context.WithTimeout(context.Background(), CONTEXT_TIMEOUT)
+		return context.WithTimeout(context.Background(), constant.CONTEXT_TIMEOUT)
 	}
-	return context.WithTimeout(parent[0], CONTEXT_TIMEOUT)
+	return context.WithTimeout(parent[0], constant.CONTEXT_TIMEOUT)
 }
 
 func GetContextValue[T any](key string, ctx *gin.Context) (T, error) {

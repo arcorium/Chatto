@@ -1,11 +1,10 @@
 package middleware
 
 import (
+	"chatto/internal/constant"
 	"net/http"
 
-	"server_client_chat/internal/model"
-	"server_client_chat/internal/util"
-
+	"chatto/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/mileusna/useragent"
 )
@@ -20,7 +19,7 @@ func (u *UserAgentValidationMiddleware) Handle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userAgent := c.GetHeader("User-Agent")
 		if len(userAgent) == 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, model.NewErrorResponse(http.StatusBadRequest, util.ERR_USER_AGENT_MIDDLEWARE, nil))
+			c.AbortWithStatusJSON(http.StatusBadRequest, model.NewErrorResponse(http.StatusBadRequest, constant.ERR_USER_AGENT_MIDDLEWARE, nil))
 			return
 		}
 
