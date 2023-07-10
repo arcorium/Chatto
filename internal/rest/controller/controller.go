@@ -1,24 +1,10 @@
 package controller
 
 import (
+	"chatto/internal/rest/middleware"
 	"github.com/gin-gonic/gin"
 )
 
-type IUserController interface {
-	GetUsers(ctx *gin.Context)
-	GetUserById(ctx *gin.Context)
-	UpdateUser(ctx *gin.Context)
-	RemoveUser(ctx *gin.Context)
-}
-
-type IAuthController interface {
-	Login(ctx *gin.Context)
-	Register(ctx *gin.Context)
-	Logout(ctx *gin.Context)
-	LogoutAllDevice(ctx *gin.Context)
-	RefreshToken(ctx *gin.Context)
-}
-
-type IChatController interface {
-	Chat(ctx *gin.Context)
+type IController interface {
+	Route(router gin.IRouter, middleware *middleware.Middleware)
 }

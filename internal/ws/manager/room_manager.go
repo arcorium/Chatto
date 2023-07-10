@@ -12,7 +12,7 @@ type RoomList map[string]*model.Room
 func NewRoomManager() RoomManager {
 	return RoomManager{
 		roomsMutex: sync.RWMutex{},
-		rooms:      make(RoomList),
+		rooms:      RoomList{"general": model.NewRoom("general", false)},
 	}
 }
 

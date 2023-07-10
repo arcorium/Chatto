@@ -3,23 +3,20 @@ package model
 import (
 	"time"
 
+	"chatto/internal/util"
 	"github.com/google/uuid"
 )
 
-func NewRoomPayload(room *Room) *Payload {
-	return &Payload{
-		Type:     PayloadCreateRoom,
-		ClientId: "server",
-		Data: RoomResponse{
-			Id:      room.Id,
-			Name:    room.Name,
-			Private: room.Private,
-		},
+func NewOutcomeCreateRoom(room *Room) OutcomeCreateRoom {
+	return OutcomeCreateRoom{
+		Id:      room.Id,
+		Name:    room.Name,
+		Private: room.Private,
 	}
 }
 
-func NewRoom(name string, private bool, clients ...*Client) Room {
-	room := Room{
+func NewRoom(name string, private bool, clients ...*Client) *Room {
+	room := &Room{
 		Id:        uuid.NewString(),
 		Name:      name,
 		Private:   private,
@@ -31,14 +28,15 @@ func NewRoom(name string, private bool, clients ...*Client) Room {
 }
 
 type Room struct {
-	Id        string             `json:"id"`
-	Name      string             `json:"name"`
-	Private   bool               `json:"private"` // Used for only invite
+	Id        string             `json:"id" gorm:"primaryKey;type:uuid;not null"`
+	Name      string             `json:"name" gorm:"not null"`
+	Private   bool               `json:"private" gorm:"not null"` // Used for invite only
+	Users     []string           `json:"users" gorm:"type:uuid[]"`
 	CreatedAt time.Time          `json:"created_at"`
-	Clients   map[string]*Client `json:"-"`
+	Clients   map[string]*Client `json:"-" gorm:"-"`
 }
 
-type RoomResponse struct {
+type OutcomeCreateRoom struct {
 	Id      string `json:"id"`
 	Name    string `json:"name"`
 	Private bool   `json:"private"`
@@ -74,38 +72,35 @@ func (r *Room) BroadcastPayload(payload *Payload) {
 	}
 }
 
-func (r *Room) BroadcastPayloadExceptUserId(payload *Payload, userId string) {
-	for _, c := range r.Clients {
-		if c.UserId == userId {
-			continue
+func (r *Room) Broadcast(payload *Payload, excludeIds ...string) {
+	for _, client := range r.Clients {
+		// Check if the client id is excluded
+		if !util.IsExist(excludeIds, func(current string) bool {
+			return current == client.Id
+		}) {
+			client.SendPayload(payload)
 		}
-		c.SendPayload(payload)
 	}
 }
 
-func (r *Room) BroadcastPayloadExceptClientId(payload *Payload, clientId string) {
-	for _, c := range r.Clients {
-		if c.Id == clientId {
-			continue
-		}
-		c.SendPayload(payload)
-	}
-}
-
-// CreateRoomPayload Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
-type CreateRoomPayload struct {
+// IncomeCreateRoom Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
+type IncomeCreateRoom struct {
 	Name      string   `json:"name"`
 	Private   bool     `json:"private"`
 	MemberIds []string `json:"members,omitempty"` // Initial members. TODO: MemberIds should be on sender friends
 }
 
-// JoinRoomPayload Used to join room, room by the roomId should check the private
-type JoinRoomPayload struct {
+// IncomeJoinRoom Used to join room, room by the roomId should check the private
+type IncomeJoinRoom struct {
 	RoomId string `json:"room_id"`
 }
 
-// InviteRoomPayload Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
-type InviteRoomPayload struct {
-	RoomId   string   `json:"room_id"`
-	Receiver []string `json:"receiver"`
+type IncomeLeaveRoom struct {
+	RoomId string `json:"room_id"`
+}
+
+// IncomeInviteRoom Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
+type IncomeInviteRoom struct {
+	RoomId  string   `json:"room_id"`
+	UserIds []string `json:"user_ids"`
 }

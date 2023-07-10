@@ -31,8 +31,3 @@ type IRoomRepository interface {
 type IClientRepository interface {
 	RegisterClient()
 }
-
-type IChatRepository interface {
-	InsertChat(message *model.Message) error
-	FindChats() ([]model.Message, error)
-}

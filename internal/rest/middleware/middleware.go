@@ -1,9 +1,24 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import "chatto/internal/config"
 
-type IMiddleware interface {
-	Handle() gin.HandlerFunc
+func NewMiddleware(config *config.AppConfig) Middleware {
+	tokenValConf := TokenValidationConfig{
+		SecretKeyFunc: config.JWTKeyFunc,
+		TokenType:     "Bearer",
+		SigningType:   config.JWTSigningType,
+	}
+	userAgentValConf := UserAgentValidationConfig{}
+
+	return Middleware{
+		TokenValidation: TokenValidationMiddleware{Config: &tokenValConf},
+		UserAgent:       UserAgentValidationMiddleware{Config: &userAgentValConf},
+	}
+}
+
+type Middleware struct {
+	TokenValidation TokenValidationMiddleware
+	UserAgent       UserAgentValidationMiddleware
 }
 
 const (

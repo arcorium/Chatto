@@ -12,15 +12,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewUserController(service service.IUserService) *UserController {
-	return &UserController{service: service}
+func NewUserController(service service.IUserService) IController {
+	return &userController{service: service}
 }
 
-type UserController struct {
+type userController struct {
 	service service.IUserService
 }
 
-func (u *UserController) CreateUser(ctx *gin.Context) {
+func (u userController) Route(router gin.IRouter, middlewares *middleware.Middleware) {
+	userRoute := router.Group("/users", middlewares.TokenValidation.Handle())
+	userRoute.GET("/", u.GetUsers)
+	userRoute.GET("/:id", u.GetUserById)
+	userRoute.PUT("/:id", u.UpdateUser)
+	userRoute.DELETE("/:id", u.RemoveUser)
+}
+
+func (u userController) CreateUser(ctx *gin.Context) {
 	var user model.User
 	if err := ctx.BindJSON(&user); err != nil {
 		util.ErrorResponse(ctx, http.StatusBadRequest, err.Error())
@@ -36,7 +44,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 	util.SuccessResponse(ctx, http.StatusCreated, nil)
 }
 
-func (u *UserController) GetUsers(ctx *gin.Context) {
+func (u userController) GetUsers(ctx *gin.Context) {
 	users, err := u.service.FindUsers()
 	if err.IsError() {
 		util.ErrorResponse(ctx, err.HttpCode, err.Error())
@@ -46,7 +54,7 @@ func (u *UserController) GetUsers(ctx *gin.Context) {
 	util.SuccessResponse(ctx, http.StatusOK, users)
 }
 
-func (u *UserController) GetUserById(ctx *gin.Context) {
+func (u userController) GetUserById(ctx *gin.Context) {
 	id := ctx.Param("id")
 	// Special Case
 	if id == "me" {
@@ -66,7 +74,7 @@ func (u *UserController) GetUserById(ctx *gin.Context) {
 	util.SuccessResponse(ctx, http.StatusOK, user)
 }
 
-func (u *UserController) UpdateUser(ctx *gin.Context) {
+func (u userController) UpdateUser(ctx *gin.Context) {
 	id := ctx.Param("id")
 	var user model.User
 	if err := ctx.BindJSON(&user); err != nil {
@@ -83,7 +91,7 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 	util.SuccessResponse(ctx, http.StatusOK, user)
 }
 
-func (u *UserController) RemoveUser(ctx *gin.Context) {
+func (u userController) RemoveUser(ctx *gin.Context) {
 	id := ctx.Param("id")
 	err := u.service.RemoveUserById(id)
 	if err.IsError() {

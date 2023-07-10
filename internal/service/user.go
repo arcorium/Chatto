@@ -1,11 +1,12 @@
 package service
 
 import (
-	"chatto/internal/constant"
 	"log"
 	"net/http"
 
-	"chatto/internal/config"
+	"chatto/internal/constant"
+	"chatto/internal/model/common"
+
 	"chatto/internal/model"
 	"chatto/internal/repository"
 	"chatto/internal/util"
@@ -13,38 +14,37 @@ import (
 	"github.com/google/uuid"
 )
 
-func NewUserService(serverConfig *config.AppConfig, repository repository.IUserRepository) UserService {
-	return UserService{ServerConfig: serverConfig, repo: repository}
+func NewUserService(repository repository.IUserRepository) IUserService {
+	return &userService{repo: repository}
 }
 
-type UserService struct {
-	ServerConfig *config.AppConfig
-	repo         repository.IUserRepository
+type userService struct {
+	repo repository.IUserRepository
 }
 
-func (u *UserService) FindUserById(id string) (model.UserResponse, CustomError) {
+func (u userService) FindUserById(id string) (model.UserResponse, common.Error) {
 	user, err := u.repo.FindUserById(id)
 	if err != nil {
 		log.Println(err)
-		return model.UserResponse{}, NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
+		return model.UserResponse{}, common.NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
 	}
-	return model.NewUserResponse(user), NoError()
+	return model.NewUserResponse(user), common.NoError()
 }
 
-func (u *UserService) UpdateUserById(id string, user *model.User) CustomError {
+func (u userService) UpdateUserById(id string, user *model.User) common.Error {
 	err := u.repo.UpdateUserById(id, user)
 	if err != nil {
 		log.Println(err)
-		return NewError(http.StatusBadRequest, constant.ERR_USER_UPDATE)
+		return common.NewError(http.StatusBadRequest, constant.ERR_USER_UPDATE)
 	}
-	return NoError()
+	return common.NoError()
 }
 
-func (u *UserService) FindUsers() ([]model.UserResponse, CustomError) {
+func (u userService) FindUsers() ([]model.UserResponse, common.Error) {
 	users, err := u.repo.FindUsers()
 	if err != nil {
 		log.Println(err)
-		return nil, NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
+		return nil, common.NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
 	}
 
 	usersResponse := make([]model.UserResponse, 0)
@@ -52,26 +52,26 @@ func (u *UserService) FindUsers() ([]model.UserResponse, CustomError) {
 		usersResponse = append(usersResponse, model.NewUserResponse(&x))
 	}
 
-	return usersResponse, NoError()
+	return usersResponse, common.NoError()
 }
 
-func (u *UserService) CreateUser(user *model.User) CustomError {
+func (u userService) CreateUser(user *model.User) common.Error {
 	user.Id = uuid.NewString()
 	password, err := util.HashPassword(user.Password)
 	if err != nil {
 		log.Println(err)
-		return NewError(http.StatusBadRequest, constant.ERR_USER_CREATE)
+		return common.NewError(http.StatusBadRequest, constant.ERR_USER_CREATE)
 	}
 	user.Password = password
 
 	err = u.repo.CreateUser(user)
-	return NoError()
+	return common.NoError()
 }
 
-func (u *UserService) RemoveUserById(id string) CustomError {
+func (u userService) RemoveUserById(id string) common.Error {
 	err := u.repo.RemoveUserById(id)
 	if err != nil {
-		return NewError(http.StatusBadRequest, constant.ERR_USER_REMOVE)
+		return common.NewError(http.StatusBadRequest, constant.ERR_USER_REMOVE)
 	}
-	return NoError()
+	return common.NoError()
 }

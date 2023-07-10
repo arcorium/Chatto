@@ -1,57 +1,32 @@
 package service
 
 import (
-	"errors"
-
 	"chatto/internal/model"
+	"chatto/internal/model/common"
 )
 
-type CustomError struct {
-	HttpCode  uint
-	ErrorCode uint
-	Err       error
-}
-
-func (e CustomError) IsError() bool {
-	return e.Err != nil
-}
-
-func (e CustomError) Error() string {
-	return e.Err.Error()
-}
-
-func NewError(code uint, message string) CustomError {
-	return CustomError{
-		HttpCode:  code,
-		ErrorCode: code,
-		Err:       errors.New(message),
-	}
-}
-
-func NoError() CustomError {
-	return CustomError{
-		HttpCode:  200,
-		ErrorCode: 200,
-		Err:       nil,
-	}
-}
-
 type IUserService interface {
-	FindUsers() ([]model.UserResponse, CustomError)
-	FindUserById(id string) (model.UserResponse, CustomError)
-	UpdateUserById(id string, user *model.User) CustomError
-	CreateUser(user *model.User) CustomError
-	RemoveUserById(id string) CustomError
+	FindUsers() ([]model.UserResponse, common.Error)
+	FindUserById(id string) (model.UserResponse, common.Error)
+	UpdateUserById(id string, user *model.User) common.Error
+	CreateUser(user *model.User) common.Error
+	RemoveUserById(id string) common.Error
 }
 
 type IAuthService interface {
-	SignIn(input *model.SignInInput, sysInfo *model.SystemInfo) (string, CustomError)
-	SignUp(input *model.SignInInput) CustomError
-	Logout(userId string, tokenId string) CustomError
-	LogoutAllDevice(userId string) CustomError
-	RefreshToken(accessToken string) (string, CustomError)
+	SignIn(input *model.SignInInput, sysInfo *common.SystemInfo) (string, common.Error)
+	SignUp(input *model.SignInInput) common.Error
+	Logout(userId string, tokenId string) common.Error
+	LogoutAllDevice(userId string) common.Error
+	RefreshToken(accessToken string) (string, common.Error)
 }
 
-type IChatService interface {
-	HandleNewClient(client *model.Client) CustomError
+type IRoomService interface {
+	CreateRoom()
+	FindRooms()
+	FindRoomByName()
+	FindRoomById()
+	DeleteRoom()
+	AddUserIntoRoom()
+	DeleteUserFromRoom()
 }

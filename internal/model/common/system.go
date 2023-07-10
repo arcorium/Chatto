@@ -1,4 +1,4 @@
-package model
+package common
 
 type SystemInfo struct {
 	Name string `json:"name"`

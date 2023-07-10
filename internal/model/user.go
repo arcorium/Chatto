@@ -10,10 +10,11 @@ const (
 )
 
 type User struct {
-	Id       string `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	Name     string `json:"name" gorm:"not null"`
-	Password string `json:"password" gorm:"not null"`
-	Role     Role   `json:"role" gorm:"default:user"`
+	Id       string   `json:"id" gorm:"primaryKey;type:uuid"`
+	Name     string   `json:"name" gorm:"not null"`
+	Password string   `json:"password" gorm:"not null"`
+	Role     Role     `json:"role" gorm:"default:user"`
+	RoomIds  []string `json:"room_ids" gorm:"type:uuid[]"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime:milli"`
@@ -33,30 +34,24 @@ func NewUserResponse(user *User) UserResponse {
 	}
 }
 
-func NewUserResponsePayload(self *Client, clients []*Client) Payload {
-	payload := Payload{
-		Type:     PayloadGetUsers,
-		ClientId: self.Id,
-	}
+type IncomeGetUser struct {
+	Username string `json:"username"`
+}
 
+func NewOutcomeGetUser(clients []*Client) OutcomeGetUser {
 	userResponses := make([]UserResponse, 0, len(clients))
 	for _, c := range clients {
-		// Prevent to response itself
-		if c.UserId == self.UserId {
-			continue
-		}
-
 		userResponses = append(userResponses, UserResponse{
 			UserId:   c.UserId,
 			Username: c.Username,
 			Role:     c.Role,
 		})
 	}
-	payload.Data = userResponses
-
-	return payload
+	return OutcomeGetUser{
+		Users: userResponses,
+	}
 }
 
-type GetUserPayload struct {
-	Username string `json:"username"`
+type OutcomeGetUser struct {
+	Users []UserResponse `json:"users"`
 }

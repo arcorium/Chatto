@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"chatto/internal/constant"
+	"chatto/internal/model/common"
+
 	"errors"
 	"net/http"
 	"strings"
@@ -24,7 +26,9 @@ type TokenValidationMiddleware struct {
 }
 
 func (a *TokenValidationMiddleware) Handle() gin.HandlerFunc {
-	a.Config.TokenType = "Bearer"
+	if len(a.Config.TokenType) == 0 {
+		a.Config.TokenType = "Bearer"
+	}
 
 	return func(c *gin.Context) {
 		// Get the value
@@ -33,28 +37,28 @@ func (a *TokenValidationMiddleware) Handle() gin.HandlerFunc {
 		// Parse
 		token, err := a.parseToken(data)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
 			return
 		}
 
 		// Validate
 		err = a.validateToken(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
 			return
 		}
 
 		// Set claims on context
 		mapClaims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
 			return
 		}
 
 		userId := mapClaims["user_id"]
 		refreshId := mapClaims["refresh_id"]
 		if userId == nil || refreshId == nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, model.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
 			return
 		}
 

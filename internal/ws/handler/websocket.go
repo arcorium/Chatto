@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"chatto/internal/model"
+	"chatto/internal/model/common"
 	"chatto/internal/rest/middleware"
 	"chatto/internal/service"
 	"chatto/internal/util"
@@ -37,7 +38,7 @@ func (w *WebsocketHandler) ServeWebsocket(ctx *gin.Context) {
 
 	user, cerr := w.userService.FindUserById(details.UserId)
 	if cerr.IsError() {
-		model.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil)
+		common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil)
 		return
 	}
 

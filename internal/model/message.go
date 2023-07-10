@@ -1,26 +1,15 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
-)
 
-func NewPrivateMessagePayload(client *Client, message *Message) Payload {
-	return Payload{
-		Type: PayloadPrivateChat,
-		Data: PrivateMessage{
-			SenderId:  client.UserId,
-			Sender:    client.Username,
-			Message:   message.Message,
-			Timestamp: message.Timestamp,
-		},
-	}
-}
+	"github.com/google/uuid"
+)
 
 func NewRoomMessagePayload(client *Client, message *Message) Payload {
 	return Payload{
 		Type: PayloadRoomChat,
-		Data: RoomMessage{
+		Data: OutcomeRoomMessage{
 			RoomId:    message.Receiver,
 			SenderId:  client.UserId,
 			Sender:    client.Username,
@@ -30,10 +19,11 @@ func NewRoomMessagePayload(client *Client, message *Message) Payload {
 	}
 }
 
-func NewMessage(message *IncomeMessage) *Message {
+func NewMessage(sender *Client, message *IncomeMessage) *Message {
 	return &Message{
 		// Check id
 		Id:        uuid.NewString(),
+		Sender:    sender.UserId,
 		Receiver:  message.Receiver,
 		Message:   message.Message,
 		Timestamp: time.Now().Unix(),
@@ -42,6 +32,7 @@ func NewMessage(message *IncomeMessage) *Message {
 
 type Message struct {
 	Id        string `json:"id"`
+	Sender    string `json:"sender"`
 	Receiver  string `json:"receiver"`
 	Message   string `json:"message"`
 	Timestamp int64  `json:"ts"`
@@ -52,14 +43,33 @@ type IncomeMessage struct {
 	Message  string `json:"message"`
 }
 
-type PrivateMessage struct {
+func NewOutcomePrivateMessage(sender *Client, message *Message) OutcomePrivateMessage {
+	return OutcomePrivateMessage{
+		SenderId:  sender.UserId,
+		Sender:    sender.Username,
+		Message:   message.Message,
+		Timestamp: message.Timestamp,
+	}
+}
+
+type OutcomePrivateMessage struct {
 	SenderId  string `json:"sender_id"`
 	Sender    string `json:"sender"`
 	Message   string `json:"message"`
 	Timestamp int64  `json:"ts"`
 }
 
-type RoomMessage struct {
+func NewOutcomeRoomMessage(sender *Client, message *Message) OutcomeRoomMessage {
+	return OutcomeRoomMessage{
+		RoomId:    message.Receiver,
+		SenderId:  sender.UserId,
+		Sender:    sender.Username,
+		Message:   message.Message,
+		Timestamp: message.Timestamp,
+	}
+}
+
+type OutcomeRoomMessage struct {
 	RoomId    string `json:"room_id"`
 	SenderId  string `json:"sender_id"`
 	Sender    string `json:"sender"`

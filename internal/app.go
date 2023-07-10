@@ -33,7 +33,7 @@ type Application struct {
 }
 
 func (a *Application) openDatabase() (*gorm.DB, error) {
-	conn, err := sql.Open(a.Config.UserDatabaseDriver, a.Config.UserDatabaseURI)
+	conn, err := sql.Open("pgx", a.Config.UserDatabaseURI)
 	if err != nil {
 		return nil, err
 	}
@@ -44,15 +44,7 @@ func (a *Application) openDatabase() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&model.User{})
-	if err != nil {
-		return nil, err
-	}
-	err = db.AutoMigrate(&model.TokenDetails{})
-	if err != nil {
-		return nil, err
-	}
-
+	err = db.AutoMigrate(&model.User{}, &model.TokenDetails{}, &model.Room{})
 	return db, err
 }
 
@@ -76,16 +68,26 @@ func (a *Application) Start() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	redisDb, err := a.openRedisDatabase()
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer func(redisDb *redis.Client) {
+		err := redisDb.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(redisDb)
 
 	userRepo := repository.NewUserRepository(db)
-	userService := service.NewUserService(a.Config, userRepo)
+	userService := service.NewUserService(userRepo)
 
 	authRepo := repository.NewAuthRepository(db)
-	authService := service.NewAuthService(a.Config, &authRepo, userRepo)
+	authService := service.NewAuthService(a.Config, authRepo, userRepo)
+
+	roomRepo := repository.NewRoomRepository(db)
+	roomService := service.NewRoomService(roomRepo)
 
 	chatRepository := repository.NewChatRepository(redisDb)
 	chatService := service.NewChatService(chatRepository)
@@ -94,13 +96,14 @@ func (a *Application) Start() {
 	restServer := rest.Server{
 		Config:      a.Config,
 		Router:      a.App,
-		UserService: &userService,
-		AuthService: &authService,
+		UserService: userService,
+		AuthService: authService,
+		RoomService: roomService,
 	}
 	restServer.Setup()
 
 	// Handle Websocket routes
-	wsServer := ws.NewWebsocketServer(a.Config, a.App, &userService, &authService, &chatService)
+	wsServer := ws.NewWebsocketServer(a.Config, a.App, userService, authService, chatService)
 	wsServer.Setup()
 
 	log.Fatalln(a.App.Run(a.Config.Address))

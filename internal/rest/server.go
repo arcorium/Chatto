@@ -3,7 +3,7 @@ package rest
 import (
 	"chatto/internal/config"
 	"chatto/internal/rest/controller"
-	"chatto/internal/rest/route"
+	"chatto/internal/rest/middleware"
 	"chatto/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,20 +15,21 @@ type Server struct {
 
 	UserService service.IUserService
 	AuthService service.IAuthService
+	RoomService service.IRoomService
 }
 
-func (s *Server) registerRoutes(routes ...route.IRoute) {
-	route.V1Route(s.Router, s.Config, routes...)
+func (s *Server) registerControllers(controllers ...controller.IController) {
+	middlewares := middleware.NewMiddleware(s.Config)
+	for _, c := range controllers {
+		c.Route(s.Router, &middlewares)
+	}
 }
 
 func (s *Server) Setup() {
-
 	userController := controller.NewUserController(s.UserService)
-	userRoute := route.NewUserRoute(userController)
-
 	authController := controller.NewAuthController(s.AuthService)
-	authRoute := route.NewAuthRoute(&authController)
+	roomController := controller.NewRoomController(s.RoomService)
 
 	// Handle REST API routes
-	s.registerRoutes(authRoute, userRoute)
+	s.registerControllers(userController, authController, roomController)
 }

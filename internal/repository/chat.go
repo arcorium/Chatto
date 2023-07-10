@@ -6,6 +6,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type IChatRepository interface {
+	UpsertMessage(message *model.Message, isRoom bool) error
+	FindChats() ([]model.Message, error)
+}
+
 func NewChatRepository(client *redis.Client) ChatRepository {
 	return ChatRepository{db: client}
 }
@@ -14,7 +19,7 @@ type ChatRepository struct {
 	db *redis.Client
 }
 
-func (c ChatRepository) InsertChat(message *model.Message) error {
+func (c ChatRepository) UpsertMessage(message *model.Message, isRoom bool) error {
 	return nil
 }
 

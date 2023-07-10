@@ -2,6 +2,8 @@ package service
 
 import (
 	"chatto/internal/constant"
+	"chatto/internal/model/common"
+
 	"log"
 	"net/http"
 
@@ -15,28 +17,28 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func NewAuthService(conf *config.AppConfig, authRepos repository.IAuthRepository, userRepos repository.IUserRepository) AuthService {
-	return AuthService{serverConfig: conf, authRepos: authRepos, userRepos: userRepos}
+func NewAuthService(conf *config.AppConfig, authRepos repository.IAuthRepository, userRepos repository.IUserRepository) IAuthService {
+	return &authService{serverConfig: conf, authRepos: authRepos, userRepos: userRepos}
 }
 
-type AuthService struct {
+type authService struct {
 	serverConfig *config.AppConfig
 	authRepos    repository.IAuthRepository
 	userRepos    repository.IUserRepository
 }
 
-func (a *AuthService) SignIn(input *model.SignInInput, sysInfo *model.SystemInfo) (string, CustomError) {
+func (a *authService) SignIn(input *model.SignInInput, sysInfo *common.SystemInfo) (string, common.Error) {
 	// Check Credential
 	user, err := a.userRepos.FindUserByName(input.Username)
 	if err != nil {
 		log.Println("Error Login: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_LOGIN_USERNAME_PASSWORD)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_LOGIN_USERNAME_PASSWORD)
 	}
 
 	err = util.ValidatePassword(user.Password, input.Password)
 	if err != nil {
 		log.Println("Error Login: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_LOGIN_USERNAME_PASSWORD)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_LOGIN_USERNAME_PASSWORD)
 	}
 
 	// Generate JWT Token
@@ -48,7 +50,7 @@ func (a *AuthService) SignIn(input *model.SignInInput, sysInfo *model.SystemInfo
 	refreshToken, err := util.CreateToken(refreshClaims, constant.REFRESH_TOKEN_EXP_TIME, a.serverConfig.JWTSecretKey)
 	if err != nil {
 		log.Println("Error Login: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
 	}
 
 	savedToken := model.TokenDetails{
@@ -60,23 +62,23 @@ func (a *AuthService) SignIn(input *model.SignInInput, sysInfo *model.SystemInfo
 	err = a.authRepos.SaveToken(&savedToken)
 	if err != nil {
 		log.Println("Error Save Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
 	}
 
 	// Access Token
 	accessToken, err := a.generateAccessToken(user.Id, refreshId)
 	if err != nil {
 		log.Println("Error Save Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
 	}
 
-	return accessToken, NoError()
+	return accessToken, common.NoError()
 }
 
-func (a *AuthService) SignUp(input *model.SignInInput) CustomError {
+func (a *authService) SignUp(input *model.SignInInput) common.Error {
 	password, err := util.HashPassword(input.Password)
 	if err != nil {
-		return NewError(http.StatusBadRequest, constant.ERR_SIGNUP)
+		return common.NewError(http.StatusBadRequest, constant.ERR_SIGNUP)
 	}
 
 	user := model.User{
@@ -85,42 +87,42 @@ func (a *AuthService) SignUp(input *model.SignInInput) CustomError {
 	}
 	err = a.userRepos.CreateUser(&user)
 	if err != nil {
-		return NewError(http.StatusBadRequest, constant.ERR_SIGNUP)
+		return common.NewError(http.StatusBadRequest, constant.ERR_SIGNUP)
 	}
-	return NoError()
+	return common.NoError()
 }
 
-func (a *AuthService) Logout(userId string, refreshId string) CustomError {
+func (a *authService) Logout(userId string, refreshId string) common.Error {
 	token, err := a.authRepos.FindTokenById(refreshId)
 	if err != nil {
 		log.Println(err)
-		return NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
+		return common.NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
 	}
 	if token.UserId != userId {
-		return NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
+		return common.NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
 	}
 	if err := a.authRepos.RemoveTokenById(refreshId); err != nil {
 		log.Println("Logout Error: ", err)
-		return NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
+		return common.NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
 	}
-	return NoError()
+	return common.NoError()
 }
 
-func (a *AuthService) LogoutAllDevice(userId string) CustomError {
+func (a *authService) LogoutAllDevice(userId string) common.Error {
 	if err := a.authRepos.RemoveTokensByUserId(userId); err != nil {
 		log.Println("Logout Error: ", err)
-		return NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
+		return common.NewError(http.StatusBadRequest, constant.ERR_LOGOUT)
 	}
-	return NoError()
+	return common.NoError()
 }
 
-func (a *AuthService) RefreshToken(accessToken string) (string, CustomError) {
+func (a *authService) RefreshToken(accessToken string) (string, common.Error) {
 
 	// Parse token
 	accessJwtToken, err := util.ParseToken(accessToken, false, a.serverConfig.JWTKeyFunc)
 	if err != nil {
 		log.Println("Error Parse Access Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_FORMAT)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_FORMAT)
 	}
 
 	// Get access claims
@@ -137,41 +139,41 @@ func (a *AuthService) RefreshToken(accessToken string) (string, CustomError) {
 		if err != nil {
 			log.Println("Error Remove Tokens: ", err)
 		}
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_NO_OWNER)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_NO_OWNER)
 	}
 
 	// Get Token by refreshId
 	refreshToken, err := a.authRepos.FindTokenById(refreshId)
 	if err != nil {
 		log.Println("Error Find Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_REFRESH)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_REFRESH)
 	}
 
 	// Check relation access token to refresh token
 	if refreshToken.Id != refreshId {
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_NO_OWNER)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_NO_OWNER)
 	}
 
 	// Validate refresh token
 	err = util.ValidateToken(refreshToken.Token, a.serverConfig.JWTKeyFunc)
 	if err != nil {
 		log.Println("Error Parse Refresh Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_FORMAT)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_FORMAT)
 	}
 
 	// Generate new access token
 	accessToken, err = a.generateAccessToken(user.Id, refreshId)
 	if err != nil {
 		log.Println("Error Generate Token: ", err)
-		return "", NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
+		return "", common.NewError(http.StatusBadRequest, constant.ERR_TOKEN_CREATION)
 	}
 
 	// TODO: Maybe need to rotate refresh token
 
-	return accessToken, NoError()
+	return accessToken, common.NoError()
 }
 
-func (a *AuthService) generateAccessToken(userId string, refreshId string) (string, error) {
+func (a *authService) generateAccessToken(userId string, refreshId string) (string, error) {
 	accessClaims := make(jwt.MapClaims)
 	accessClaims["user_id"] = userId
 	accessClaims["refresh_id"] = refreshId // For exact refresh_id for multiple login

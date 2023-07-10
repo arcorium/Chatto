@@ -11,17 +11,17 @@ import (
 )
 
 type AppConfig struct {
-	Ip                 string `mapstructure:"LISTEN_IP"`
-	Port               string `mapstructure:"LISTEN_PORT"`
-	Address            string
-	UserDatabaseDriver string `mapstructure:"USER_DB_DRIVER"`
-	UserDatabaseURI    string `mapstructure:"USER_DB_URI"`
+	Ip              string `mapstructure:"LISTEN_IP"`
+	Port            string `mapstructure:"LISTEN_PORT"`
+	Address         string
+	UserDatabaseURI string `mapstructure:"USER_DB_URI"`
 
-	ChatDatabaseURI      string `mapstructure:"REDIS_DB_URI"`
-	ChatDatabaseUsername string `mapstructure:"REDIS_DB_USERNAME"`
-	ChatDatabasePassword string `mapstructure:"REDIS_DB_PASSWORD"`
+	ChatDatabaseURI      string `mapstructure:"CHAT_DB_URI"`
+	ChatDatabaseUsername string `mapstructure:"CHAT_DB_USERNAME"`
+	ChatDatabasePassword string `mapstructure:"CHAT_DB_PASSWORD"`
 
 	JWTSecretKey    string `mapstructure:"JWT_SECRET_KEY"`
+	JWTSigningType  string `mapstructure:"JWT_SIGNING_TYPE"`
 	JWTSecretKeyURI string `mapstructure:"JWT_SECRET_KEY_URI"`
 
 	JWTKeyFunc jwt.Keyfunc
@@ -45,16 +45,17 @@ func LoadConfig(path string) (AppConfig, error) {
 	err := viper.Unmarshal(&conf)
 	conf.Address = conf.Ip + ":" + conf.Port
 
-	if len(conf.UserDatabaseDriver) == 0 {
-		return conf, errors.New("database driver should not be absent, set DB_DRIVER on env")
-	}
 	if len(conf.UserDatabaseURI) == 0 {
 		return conf, errors.New("database uri should not be absent, set DB_URI on env")
 	}
-	if len(conf.JWTSecretKey) == 0 {
+	if len(conf.JWTSecretKey) == 0 && len(conf.JWTSecretKeyURI) == 0 {
 		return conf, errors.New("JWT secret key should not be absent, set JWT_SECRET_KEY on env")
 	}
+	if len(conf.JWTSigningType) == 0 {
+		return conf, errors.New("JWT Signing type should not be absent, set JWT_SIGNING_TYPE on env")
+	}
 
+	// Set the function to get the secret key either by the config or response
 	if len(conf.JWTSecretKeyURI) == 0 {
 		conf.JWTKeyFunc = func(token *jwt.Token) (interface{}, error) {
 			return []byte(conf.JWTSecretKey), nil

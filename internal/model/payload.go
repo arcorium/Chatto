@@ -5,15 +5,16 @@ import (
 )
 
 const (
-	PayloadMessage      = "message"
-	PayloadNotification = "notification"
-	PayloadPrivateChat  = "private-chat"
-	PayloadRoomChat     = "room-chat"
-	PayloadCreateRoom   = "create-room"
-	PayloadJoinRoom     = "join-room"
-	PayloadLeaveRoom    = "leave-room"
-	PayloadGetUsers     = "get-users"
-	PayloadError        = "error"
+	PayloadForwarder           = "forwarder"
+	PayloadPrivateNotification = "private-notif"
+	PayloadRoomNotification    = "room-notif"
+	PayloadPrivateChat         = "private-chat"
+	PayloadRoomChat            = "room-chat"
+	PayloadCreateRoom          = "create-room"
+	PayloadJoinRoom            = "join-room"
+	PayloadLeaveRoom           = "leave-room"
+	PayloadGetUsers            = "get-users"
+	PayloadError               = "error"
 )
 
 func Decode[T any](bytes []byte) (T, error) {
@@ -31,6 +32,13 @@ func NewErrorPayload(message string) Payload {
 	}
 }
 
+func NewPayload[T any](types string, data *T) Payload {
+	return Payload{
+		Type: types,
+		Data: *data,
+	}
+}
+
 type Payload struct {
 	Type     string `json:"type"`
 	ClientId string `json:"-"`
@@ -43,4 +51,45 @@ func (p *Payload) EncodeData() ([]byte, error) {
 
 func (p *Payload) Populate(client *Client) {
 	p.ClientId = client.Id
+}
+
+type ForwarderType uint8
+
+const (
+	ForwardNotification ForwarderType = iota
+	ForwardMessage
+)
+
+func NewOutcomeNotificationForward(receiver *Client, notification *OutcomePrivateNotification) OutcomeForward {
+	return OutcomeForward{
+		ReceiverId:       receiver.UserId,
+		Receiver:         receiver.Username,
+		SenderId:         notification.Sender,
+		Type:             ForwardNotification,
+		NotificationType: notification.Type,
+		Message:          notification.Message,
+		Timestamp:        notification.Timestamp,
+	}
+}
+
+func NewOutcomeMessageForward(receiver *Client, message *OutcomePrivateMessage) OutcomeForward {
+	return OutcomeForward{
+		ReceiverId:       receiver.UserId,
+		Receiver:         receiver.Username,
+		SenderId:         message.Sender,
+		Type:             ForwardMessage,
+		NotificationType: -1,
+		Message:          message.Message,
+		Timestamp:        message.Timestamp,
+	}
+}
+
+type OutcomeForward struct {
+	ReceiverId       string           `json:"receiver_id"`
+	Receiver         string           `json:"receiver"`
+	SenderId         string           `json:"sender_id"` // Used for testing
+	Type             ForwarderType    `json:"type"`
+	NotificationType NotificationType `json:"notification_type"` // Only used when the forwarded payload is notification
+	Message          string           `json:"message"`
+	Timestamp        int64            `json:"ts"`
 }

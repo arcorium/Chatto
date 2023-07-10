@@ -1,4 +1,4 @@
-package model
+package common
 
 func NewErrorResponse(code uint, message string, data any) Response {
 	return Response{

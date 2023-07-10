@@ -17,8 +17,8 @@ type SignUpInput struct {
 }
 
 type TokenDetails struct {
-	Id         string `json:"id" gorm:"primarykey"`
-	UserId     string `json:"user_id"`
+	Id         string `json:"id" gorm:"primarykey;type:uuid"`
+	UserId     string `json:"user_id" gorm:"not null;type:uuid"`
 	DeviceName string `json:"device_name"`
 	Token      string `json:"token"`
 }
