@@ -14,7 +14,7 @@ import (
 
 func StartClientHandler(chatService service.IChatService, clientManager *manager.ClientManager, client <-chan *model.Client, payload chan<- *model.Payload) {
 	handler := &ClientHandler{
-		service:       chatService,
+		chatService:   chatService,
 		clientManager: clientManager,
 		payload:       payload,
 		client:        client,
@@ -24,7 +24,7 @@ func StartClientHandler(chatService service.IChatService, clientManager *manager
 }
 
 type ClientHandler struct {
-	service       service.IChatService
+	chatService   service.IChatService
 	clientManager *manager.ClientManager
 	payload       chan<- *model.Payload
 	client        <-chan *model.Client
@@ -34,14 +34,9 @@ func (c *ClientHandler) ClientHandle() {
 	for {
 		select {
 		case client := <-c.client:
-			switch client.Status {
-			case model.ClientStatusRegister:
-				c.registerClient(client)
-				go c.ClientReadHandle(client)
-				go c.ClientWriteHandle(client)
-				//case model.ClientStatusUnregister:
-				//	c.unregisterClient(client)
-			}
+			c.registerClient(client)
+			go c.ClientReadHandle(client)
+			go c.ClientWriteHandle(client)
 		}
 	}
 }
@@ -63,18 +58,15 @@ func (c *ClientHandler) ClientReadHandle(client *model.Client) {
 	}
 
 	for {
-		var payload model.Payload
-		err = client.Conn.ReadJSON(&payload)
+		var input model.PayloadInput
+		err = client.Conn.ReadJSON(&input)
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, 10054) {
-				client.Status = model.ClientStatusUnregister
 				c.unregisterClient(client)
 				break
 			}
-			// Response error to client
-			payload = model.NewErrorPayload(constant.ERR_BAD_PAYLOAD)
 		}
-		payload.Populate(client)
+		payload := model.NewPayload(client, &input)
 		c.payload <- &payload
 	}
 }
@@ -98,15 +90,15 @@ func (c *ClientHandler) ClientWriteHandle(client *model.Client) {
 }
 
 func (c *ClientHandler) registerClient(client *model.Client) {
-	client.Status = model.ClientStatusOnline
 	c.clientManager.AddClients(client)
 	log.Println("Registering client: ", client)
-	// TODO: Add service handle
+
+	_ = c.chatService.NewClient(client)
 }
 
 func (c *ClientHandler) unregisterClient(client *model.Client) {
-	client.Status = model.ClientStatusOffline
 	c.clientManager.RemoveClientById(client.Id)
 	log.Println("Unregistering client: ", client)
-	// TODO: Add service handle
+
+	_ = c.chatService.RemoveClient(client)
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewWebsocketServer(config *config.AppConfig, router gin.IRouter, userService service.IUserService, authService service.IAuthService, chatService service.IChatService) Server {
+func NewWebsocketServer(config *config.AppConfig, router gin.IRouter, userService service.IUserService, roomService service.IRoomService, chatService service.IChatService) Server {
 	return Server{
 		cfg:           config,
 		router:        router,
@@ -21,7 +21,7 @@ func NewWebsocketServer(config *config.AppConfig, router gin.IRouter, userServic
 		payloadChan:   make(chan *model.Payload, 100),
 		clientChan:    make(chan *model.Client),
 		userService:   userService,
-		authService:   authService,
+		roomService:   roomService,
 		chatService:   chatService,
 	}
 }
@@ -36,13 +36,13 @@ type Server struct {
 	clientChan    chan *model.Client
 
 	userService service.IUserService
-	authService service.IAuthService
 	chatService service.IChatService
+	roomService service.IRoomService
 }
 
 func (s *Server) Setup() {
 	handler.StartClientHandler(s.chatService, &s.clientManager, s.clientChan, s.payloadChan)
-	handler.StartPayloadHandler(&s.clientManager, &s.roomManager, s.payloadChan)
+	handler.StartPayloadHandler(&s.clientManager, &s.roomManager, s.payloadChan, s.chatService, s.roomService)
 
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,

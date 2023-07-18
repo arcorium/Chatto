@@ -1,29 +1,32 @@
 package util
 
 import (
-	"chatto/internal/constant"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
+const contextTimeout = time.Second * 10
+
 func NewTimeoutContext(parent ...context.Context) (context.Context, context.CancelFunc) {
 	if len(parent) == 0 {
-		return context.WithTimeout(context.Background(), constant.CONTEXT_TIMEOUT)
+		return context.WithTimeout(context.Background(), contextTimeout)
 	}
-	return context.WithTimeout(parent[0], constant.CONTEXT_TIMEOUT)
+	return context.WithTimeout(parent[0], contextTimeout)
 }
 
-func GetContextValue[T any](key string, ctx *gin.Context) (T, error) {
+func GetContextValue[T any](key string, ctx *gin.Context) (*T, error) {
+	var t *T
 	data, exist := ctx.Get(key)
 	if !exist {
-		return *new(T), errors.New("value not found")
+		return t, errors.New("value not found")
 	}
-	value, ok := data.(T)
+	value, ok := data.(*T)
 	if !ok {
-		return *new(T), errors.New("value have different type")
+		return t, errors.New("value have different type")
 	}
 
 	return value, nil

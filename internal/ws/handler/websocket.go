@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"log"
-	"net/http"
-
+	"chatto/internal/constant"
 	"chatto/internal/model"
-	"chatto/internal/model/common"
-	"chatto/internal/rest/middleware"
 	"chatto/internal/service"
 	"chatto/internal/util"
+	"chatto/internal/util/httputil"
+	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -22,8 +21,7 @@ type WebsocketHandler struct {
 	upgrader websocket.Upgrader
 
 	userService service.IUserService
-
-	client chan<- *model.Client
+	client      chan<- *model.Client
 }
 
 func (w *WebsocketHandler) ServeWebsocket(ctx *gin.Context) {
@@ -33,20 +31,17 @@ func (w *WebsocketHandler) ServeWebsocket(ctx *gin.Context) {
 		log.Println(err)
 	}
 
-	// Handle new client
-	details, _ := util.GetContextValue[model.AccessTokenClaims](middleware.KEY_JWT_CLAIMS, ctx)
+	details, _ := util.GetContextValue[model.AccessTokenClaims](constant.KEY_JWT_CLAIMS, ctx)
 
 	user, cerr := w.userService.FindUserById(details.UserId)
 	if cerr.IsError() {
-		common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil)
-		return
+		httputil.ErrorResponse(ctx, http.StatusUnauthorized, cerr)
+	} else {
+		client := model.NewClient(user.Id, user.Username, user.Role, conn)
+		w.registerClient(&client)
 	}
-
-	client := model.NewClient(user.UserId, user.Username, user.Role, model.ClientStatusRegister, conn)
-	w.RegisterNewClient(&client)
-	// Let the connection done
 }
 
-func (w *WebsocketHandler) RegisterNewClient(client *model.Client) {
+func (w *WebsocketHandler) registerClient(client *model.Client) {
 	w.client <- client
 }

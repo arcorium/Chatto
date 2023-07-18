@@ -1,35 +1,34 @@
 package model
 
+import "github.com/google/uuid"
+
 type TokenType string
 
-const (
-	Bearer TokenType = "Bearer"
-)
-
-type SignInInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+func NewCredential(userId string, deviceName string, token string) Credential {
+	return Credential{
+		Id:         uuid.NewString(),
+		UserId:     userId,
+		DeviceName: deviceName,
+		Token:      token,
+	}
 }
 
-type SignUpInput struct {
-	Username string `json:"username" binding:"required"` // binding used by gin
-	Password string `json:"password" binding:"required"`
-}
-
-type TokenDetails struct {
+type Credential struct {
 	Id         string `json:"id" gorm:"primarykey;type:uuid"`
 	UserId     string `json:"user_id" gorm:"not null;type:uuid"`
 	DeviceName string `json:"device_name"`
 	Token      string `json:"token"`
 }
 
-type AccessToken struct {
-	Type  TokenType `json:"type,omitempty"`
-	Token string    `json:"access_token" binding:"required"`
-}
-
 type AccessTokenClaims struct {
 	UserId    string
+	Name      string
+	Role      string
 	RefreshId string
 	//Exp       uint64
+}
+
+type Device struct {
+	Id         string `json:"id"`
+	DeviceName string `json:"device"`
 }

@@ -7,12 +7,12 @@ import (
 	"chatto/internal/model"
 )
 
-type RoomList map[string]*model.Room
+type RoomList map[string]*model.ChatRoom
 
 func NewRoomManager() RoomManager {
 	return RoomManager{
 		roomsMutex: sync.RWMutex{},
-		rooms:      RoomList{"general": model.NewRoom("general", false)},
+		rooms:      RoomList{},
 	}
 }
 
@@ -21,7 +21,7 @@ type RoomManager struct {
 	rooms      RoomList
 }
 
-func (r *RoomManager) AddRooms(rooms ...*model.Room) {
+func (r *RoomManager) AddRooms(rooms ...*model.ChatRoom) {
 	r.roomsMutex.Lock()
 	for _, room := range rooms {
 		r.rooms[room.Id] = room
@@ -29,7 +29,7 @@ func (r *RoomManager) AddRooms(rooms ...*model.Room) {
 	r.roomsMutex.Unlock()
 }
 
-func (r *RoomManager) GetRoomById(roomId string) (*model.Room, error) {
+func (r *RoomManager) GetRoomById(roomId string) (*model.ChatRoom, error) {
 	r.roomsMutex.RLock()
 	defer r.roomsMutex.RUnlock()
 	room, ok := r.rooms[roomId]
@@ -39,7 +39,7 @@ func (r *RoomManager) GetRoomById(roomId string) (*model.Room, error) {
 	return room, nil
 }
 
-func (r *RoomManager) GetRoomByName(name string) (*model.Room, error) {
+func (r *RoomManager) GetRoomByName(name string) (*model.ChatRoom, error) {
 	r.roomsMutex.RLock()
 	defer r.roomsMutex.RUnlock()
 	for _, room := range r.rooms {

@@ -1,15 +1,23 @@
 package common
 
-func NewErrorResponse(code uint, message string, data any) Response {
+func NewErrorResponse(err Error) Response {
 	return Response{
 		Status:  "error",
-		Code:    code,
-		Message: message,
-		Data:    data,
+		Code:    err.ErrorCode,
+		Message: err.err.Error(),
+		Data:    nil,
 	}
 }
 
-func NewSuccessResponse(code uint, data any) Response {
+func NewSuccessResponse(err Error, data any) Response {
+	return Response{
+		Status: "success",
+		Code:   err.ErrorCode,
+		Data:   data,
+	}
+}
+
+func NewSuccessResponseWithCode(code uint, data any) Response {
 	return Response{
 		Status: "success",
 		Code:   code,

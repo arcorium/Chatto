@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"chatto/internal/repository/pg"
 	"regexp"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func (s *Suite) SetupSuite() {
 	gormDb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}))
 	require.NoError(s.T(), err, "Failed to create gorm db")
 
-	s.repo = NewUserRepository(gormDb)
+	s.repo = pg_repo.NewUserRepository(gormDb)
 	s.mocks = mocks
 	s.Db = gormDb
 }

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	pg_repo "chatto/internal/repository/pg"
 	"context"
 	"database/sql"
 	"errors"
@@ -8,7 +9,6 @@ import (
 
 	"chatto/internal/config"
 	"chatto/internal/model"
-	"chatto/internal/repository"
 	"chatto/internal/rest"
 	"chatto/internal/service"
 	"chatto/internal/ws"
@@ -44,7 +44,7 @@ func (a *Application) openDatabase() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&model.User{}, &model.TokenDetails{}, &model.Room{})
+	err = db.AutoMigrate(&model.User{}, &model.Credential{}, &model.Room{}, &model.UserRoom{})
 	return db, err
 }
 
@@ -80,16 +80,17 @@ func (a *Application) Start() {
 		}
 	}(redisDb)
 
-	userRepo := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepo)
+	userRepo := pg_repo.NewUserRepository(db)
+	userRoomRepo := pg_repo.NewUserRoomRepository(db)
+	userService := service.NewUserService(userRepo, userRoomRepo)
 
-	authRepo := repository.NewAuthRepository(db)
+	authRepo := pg_repo.NewAuthRepository(db)
 	authService := service.NewAuthService(a.Config, authRepo, userRepo)
 
-	roomRepo := repository.NewRoomRepository(db)
-	roomService := service.NewRoomService(roomRepo)
+	roomRepo := pg_repo.NewRoomRepository(db)
+	roomService := service.NewRoomService(roomRepo, userRoomRepo)
 
-	chatRepository := repository.NewChatRepository(redisDb)
+	chatRepository := pg_repo.NewChatRepository(redisDb)
 	chatService := service.NewChatService(chatRepository)
 
 	// Rest Server
@@ -103,7 +104,7 @@ func (a *Application) Start() {
 	restServer.Setup()
 
 	// Handle Websocket routes
-	wsServer := ws.NewWebsocketServer(a.Config, a.App, userService, authService, chatService)
+	wsServer := ws.NewWebsocketServer(a.Config, a.App, userService, roomService, chatService)
 	wsServer.Setup()
 
 	log.Fatalln(a.App.Run(a.Config.Address))

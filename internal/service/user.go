@@ -1,77 +1,89 @@
 package service
 
 import (
-	"log"
+	"chatto/internal/dto"
+	"chatto/internal/model"
+	"chatto/internal/repository"
+	"chatto/internal/util/ctrutil"
 	"net/http"
 
 	"chatto/internal/constant"
 	"chatto/internal/model/common"
 
-	"chatto/internal/model"
-	"chatto/internal/repository"
 	"chatto/internal/util"
 
 	"github.com/google/uuid"
 )
 
-func NewUserService(repository repository.IUserRepository) IUserService {
-	return &userService{repo: repository}
+type IUserService interface {
+	GetUsers() ([]dto.UserResponse, common.Error)
+	FindUserById(id string) (dto.UserResponse, common.Error)
+	GetUsersOnRoomById(roomId string) ([]dto.UserResponse, common.Error)
+	UpdateUserById(id string, user *dto.UpdateUserInput) common.Error
+	CreateUser(user *dto.CreateUserInput) common.Error
+	RemoveUserById(id string) common.Error
+}
+
+func NewUserService(userRepo repository.IUserRepository, userRoomRepo repository.IUserRoomRepository) IUserService {
+	return &userService{userRepo: userRepo, userRoomRepo: userRoomRepo}
 }
 
 type userService struct {
-	repo repository.IUserRepository
+	userRepo     repository.IUserRepository
+	userRoomRepo repository.IUserRoomRepository
 }
 
-func (u userService) FindUserById(id string) (model.UserResponse, common.Error) {
-	user, err := u.repo.FindUserById(id)
+func (u userService) FindUserById(id string) (dto.UserResponse, common.Error) {
+	user, err := u.userRepo.FindUserById(id)
+	return dto.NewUserResponse(user), common.NewConditionalError(err, common.USER_NOT_FOUND_ERROR, constant.MSG_USER_NOT_FOUND)
+}
+
+func (u userService) UpdateUserById(id string, input *dto.UpdateUserInput) common.Error {
+	user := dto.NewUserFromUpdateInput(input)
+	err := u.userRepo.UpdateUserById(id, &user)
+	return common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_FAILED_UPDATE_USER)
+}
+
+func (u userService) GetUsers() ([]dto.UserResponse, common.Error) {
+	users, err := u.userRepo.FindUsers()
 	if err != nil {
-		log.Println(err)
-		return model.UserResponse{}, common.NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
+		return nil, common.NewError(http.StatusBadRequest, constant.MSG_USER_NOT_FOUND)
 	}
-	return model.NewUserResponse(user), common.NoError()
+
+	userResponses := ctrutil.ConvertSliceType(users, func(current *model.User) dto.UserResponse {
+		return dto.NewUserResponse(current)
+	})
+
+	return userResponses, common.NoError()
 }
 
-func (u userService) UpdateUserById(id string, user *model.User) common.Error {
-	err := u.repo.UpdateUserById(id, user)
+func (u userService) GetUsersOnRoomById(roomId string) ([]dto.UserResponse, common.Error) {
+	userIds, err := u.userRoomRepo.GetUserIdsOnRoomById(roomId)
 	if err != nil {
-		log.Println(err)
-		return common.NewError(http.StatusBadRequest, constant.ERR_USER_UPDATE)
+		return nil, common.NewError(common.INTERNAL_REPOSITORY_ERROR, constant.MSG_INTERNAL_SERVER_ERROR)
 	}
-	return common.NoError()
+
+	userResponses, err := ctrutil.SafeConvertSliceType(userIds, func(current *string) (dto.UserResponse, error) {
+		user, err := u.userRepo.FindUserById(*current)
+		return dto.NewUserResponse(user), err
+	})
+	return userResponses, common.NewConditionalError(err, common.USER_NOT_FOUND_ERROR, constant.MSG_USER_NOT_FOUND)
 }
 
-func (u userService) FindUsers() ([]model.UserResponse, common.Error) {
-	users, err := u.repo.FindUsers()
-	if err != nil {
-		log.Println(err)
-		return nil, common.NewError(http.StatusBadRequest, constant.ERR_USER_NOT_FOUND)
-	}
-
-	usersResponse := make([]model.UserResponse, 0)
-	for _, x := range users {
-		usersResponse = append(usersResponse, model.NewUserResponse(&x))
-	}
-
-	return usersResponse, common.NoError()
-}
-
-func (u userService) CreateUser(user *model.User) common.Error {
+func (u userService) CreateUser(input *dto.CreateUserInput) common.Error {
+	user := dto.NewUserFromCreateInput(input)
 	user.Id = uuid.NewString()
-	password, err := util.HashPassword(user.Password)
+	password, err := util.HashPassword(input.Password)
 	if err != nil {
-		log.Println(err)
-		return common.NewError(http.StatusBadRequest, constant.ERR_USER_CREATE)
+		return common.NewError(common.HASH_PASSWORD_ERROR, constant.MSG_FAILED_CREATE_USER)
 	}
 	user.Password = password
 
-	err = u.repo.CreateUser(user)
-	return common.NoError()
+	err = u.userRepo.CreateUser(&user)
+	return common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_FAILED_CREATE_USER)
 }
 
 func (u userService) RemoveUserById(id string) common.Error {
-	err := u.repo.RemoveUserById(id)
-	if err != nil {
-		return common.NewError(http.StatusBadRequest, constant.ERR_USER_REMOVE)
-	}
-	return common.NoError()
+	err := u.userRepo.RemoveUserById(id)
+	return common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_FAILED_REMOVE_USER)
 }

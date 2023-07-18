@@ -1,64 +1,52 @@
 package model
 
 import (
+	"chatto/internal/util/ctrutil"
 	"time"
-
-	"chatto/internal/util"
-	"github.com/google/uuid"
 )
 
-func NewOutcomeCreateRoom(room *Room) OutcomeCreateRoom {
-	return OutcomeCreateRoom{
-		Id:      room.Id,
-		Name:    room.Name,
-		Private: room.Private,
-	}
-}
-
-func NewRoom(name string, private bool, clients ...*Client) *Room {
-	room := &Room{
-		Id:        uuid.NewString(),
-		Name:      name,
-		Private:   private,
-		CreatedAt: time.Now(),
-		Clients:   make(map[string]*Client),
-	}
-	room.AddClients(clients...)
-	return room
-}
-
 type Room struct {
-	Id        string             `json:"id" gorm:"primaryKey;type:uuid;not null"`
-	Name      string             `json:"name" gorm:"not null"`
-	Private   bool               `json:"private" gorm:"not null"` // Used for invite only
-	Users     []string           `json:"users" gorm:"type:uuid[]"`
-	CreatedAt time.Time          `json:"created_at"`
-	Clients   map[string]*Client `json:"-" gorm:"-"`
+	Id          string `gorm:"primaryKey;type:uuid;not null"`
+	Name        string `gorm:"not null"`
+	Description string
+	Private     bool `gorm:"not null"` // Used for invite only
+
+	CreatedAt time.Time
 }
 
-type OutcomeCreateRoom struct {
-	Id      string `json:"id"`
-	Name    string `json:"name"`
-	Private bool   `json:"private"`
+type ChatRoom struct {
+	Id          string
+	Name        string
+	Description string
+	Private     bool
+	Clients     map[string]*Client
 }
 
-func (r *Room) IsExist(client *Client) bool {
-	return r.Clients[client.UserId] != nil
+// IsClientExist Used to check single client if it is already on the room
+func (r *ChatRoom) IsClientExist(client *Client) bool {
+	return r.Clients[client.Id] != nil
 }
 
-func (r *Room) AddClients(clients ...*Client) {
+// IsUserExist Used to check if the user is already on the room
+func (r *ChatRoom) IsUserExist(userId string) bool {
+	return ctrutil.MapIsExist(r.Clients, func(key string, val *Client) bool {
+		return val.UserId == userId
+	})
+}
+
+func (r *ChatRoom) AddClients(clients ...*Client) {
 	for _, c := range clients {
 		r.Clients[c.Id] = c
 	}
 }
 
-func (r *Room) RemoveClients(clients ...*Client) {
+func (r *ChatRoom) RemoveClients(clients ...*Client) {
 	for _, c := range clients {
 		delete(r.Clients, c.Id)
 	}
 }
 
-func (r *Room) RemoveClientsByUserId(userId string) {
+func (r *ChatRoom) RemoveClientsByUserId(userId string) {
 	for _, c := range r.Clients {
 		if userId == c.UserId {
 			delete(r.Clients, c.Id)
@@ -66,41 +54,13 @@ func (r *Room) RemoveClientsByUserId(userId string) {
 	}
 }
 
-func (r *Room) BroadcastPayload(payload *Payload) {
-	for _, c := range r.Clients {
-		c.SendPayload(payload)
-	}
-}
-
-func (r *Room) Broadcast(payload *Payload, excludeIds ...string) {
+func (r *ChatRoom) Broadcast(payload *PayloadOutput, excludeIds ...string) {
 	for _, client := range r.Clients {
 		// Check if the client id is excluded
-		if !util.IsExist(excludeIds, func(current string) bool {
-			return current == client.Id
+		if !ctrutil.IsExist(excludeIds, func(current *string) bool {
+			return *current == client.Id
 		}) {
 			client.SendPayload(payload)
 		}
 	}
-}
-
-// IncomeCreateRoom Used to create new room with members, it is needed due to no implicit feature to create the room when trying to join unlisted room
-type IncomeCreateRoom struct {
-	Name      string   `json:"name"`
-	Private   bool     `json:"private"`
-	MemberIds []string `json:"members,omitempty"` // Initial members. TODO: MemberIds should be on sender friends
-}
-
-// IncomeJoinRoom Used to join room, room by the roomId should check the private
-type IncomeJoinRoom struct {
-	RoomId string `json:"room_id"`
-}
-
-type IncomeLeaveRoom struct {
-	RoomId string `json:"room_id"`
-}
-
-// IncomeInviteRoom Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
-type IncomeInviteRoom struct {
-	RoomId  string   `json:"room_id"`
-	UserIds []string `json:"user_ids"`
 }

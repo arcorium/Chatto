@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"chatto/internal/constant"
+	"chatto/internal/dto"
+	"chatto/internal/model/common"
+	"chatto/internal/util"
 	"log"
 
 	"chatto/internal/model"
@@ -8,36 +12,35 @@ import (
 	"chatto/internal/ws/manager"
 )
 
-func StartPayloadHandler(clientManager *manager.ClientManager, roomManager *manager.RoomManager, payload <-chan *model.Payload) {
+func StartPayloadHandler(clientManager *manager.ClientManager, roomManager *manager.RoomManager, payload <-chan *model.Payload, chatService service.IChatService, roomService service.IRoomService) {
 	handler := &PayloadHandler{
-		clientManager: clientManager,
 		roomManager:   roomManager,
+		clientManager: clientManager,
 		payload:       payload,
+		chatService:   chatService,
+		roomService:   roomService,
 	}
 
-	go handler.PayloadHandle()
+	go handler.PayloadHandler()
 }
 
 type PayloadHandler struct {
 	roomManager   *manager.RoomManager
 	clientManager *manager.ClientManager
 	payload       <-chan *model.Payload
-	chatService   service.IChatService
+
+	chatService service.IChatService
+	roomService service.IRoomService
 }
 
-func (p *PayloadHandler) PayloadHandle() {
+func (p *PayloadHandler) PayloadHandler() {
 	for {
 		select {
 		case payload := <-p.payload:
 			log.Println(payload)
+
 			// Convert interface{} into bytes, so it can be unmarshalled
-			bytes, err := payload.EncodeData()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			// Get client
-			client, err := p.clientManager.GetClientById(payload.ClientId)
+			bytes, err := payload.DataBytes()
 			if err != nil {
 				log.Println(err)
 				continue
@@ -46,118 +49,123 @@ func (p *PayloadHandler) PayloadHandle() {
 			// Check payload type
 			switch payload.Type {
 			case model.PayloadPrivateNotification:
-				notif, err := model.Decode[model.IncomeNotification](bytes)
+				notif, err := model.Decode[dto.NotificationInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandlePrivateNotification(client, &notif)
+				p.HandlePrivateNotification(payload.Client, &notif)
 			case model.PayloadRoomNotification:
-				notif, err := model.Decode[model.IncomeNotification](bytes)
+				notif, err := model.Decode[dto.NotificationInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleRoomNotification(client, &notif)
+				p.HandleRoomNotification(payload.Client, &notif)
 			case model.PayloadPrivateChat:
-				privateChat, err := model.Decode[model.IncomeMessage](bytes)
+				privateChat, err := model.Decode[dto.MessageInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandlePrivateChat(client, &privateChat)
+				p.HandlePrivateChat(payload.Client, &privateChat)
 				// Let client handle it
 			case model.PayloadRoomChat:
-				roomChat, err := model.Decode[model.IncomeMessage](bytes)
+				roomChat, err := model.Decode[dto.MessageInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleRoomChat(client, &roomChat)
+				p.HandleRoomChat(payload.Client, &roomChat)
 			case model.PayloadCreateRoom:
-				createRoom, err := model.Decode[model.IncomeCreateRoom](bytes)
+				createRoom, err := model.Decode[dto.CreateRoomInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleCreateRoom(client, &createRoom)
+				p.HandleCreateRoom(payload.Client, &createRoom)
 			case model.PayloadJoinRoom:
-				joinRoom, err := model.Decode[model.IncomeJoinRoom](bytes)
+				joinRoom, err := model.Decode[dto.JoinRoomInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleJoinRoom(client, &joinRoom)
+				p.HandleJoinRoom(payload.Client, &joinRoom)
 			case model.PayloadLeaveRoom:
 				// Implicitly remove room when there is only one user there
-				leaveRoom, err := model.Decode[model.IncomeJoinRoom](bytes)
+				leaveRoom, err := model.Decode[dto.LeaveRoomInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleLeaveRoom(client, &leaveRoom)
+				p.HandleLeaveRoom(payload.Client, &leaveRoom)
+			case model.PayloadInviteToRoom:
+				inviteRoom, err := model.Decode[dto.InviteRoomInput](bytes)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				p.HandleInviteToRoom(payload.Client, &inviteRoom)
 			case model.PayloadGetUsers:
-				getUser, err := model.Decode[model.IncomeGetUser](bytes)
+				getUser, err := model.Decode[dto.GetUserInput](bytes)
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				p.HandleGetUsers(client, &getUser)
+				p.HandleGetUsers(payload.Client, &getUser)
 			}
 		}
 	}
 }
 
-func (p *PayloadHandler) HandlePrivateNotification(sender *model.Client, notification *model.IncomeNotification) {
-	receivers := p.clientManager.GetClientsByUserId(notification.Receiver)
+func (p *PayloadHandler) broadcast(output *model.PayloadOutput, receivers []*model.Client) {
+	for _, c := range receivers {
+		c.SendPayload(output)
+	}
+}
+
+func (p *PayloadHandler) HandlePrivateNotification(sender *model.Client, input *dto.NotificationInput) {
+	receivers := p.clientManager.GetClientsByUserId(input.Receiver)
 	if len(receivers) == 0 {
 		return
 	}
 
-	privateNotif, err := p.chatService.HandleNewPrivateNotification(sender, notification)
+	privateNotif, err := p.chatService.NewNotification(sender.UserId, input)
 	if err.IsError() {
 		return
 	}
 
 	senders := p.clientManager.GetUniqueClientByUserId(sender)
-	if len(senders) >= 1 {
-		forwardNotification := model.NewOutcomeNotificationForward(receivers[0], &privateNotif)
-		forwardPayload := model.NewPayload(model.PayloadForwarder, &forwardNotification)
-		for _, c := range senders {
-			c.SendPayload(&forwardPayload)
-		}
+	if len(senders) == 0 {
+		forwardNotification := dto.NewNotificationForward(input.Receiver, &privateNotif)
+		util.ForwardPayload(senders, model.PayloadNotificationForwarder, &forwardNotification)
 	}
 
-	privateNotifPayload := model.NewPayload(model.PayloadPrivateChat, &privateNotif)
-	for _, c := range receivers {
-		c.SendPayload(&privateNotifPayload)
-	}
+	notifPayload := model.NewPayloadOutput(model.PayloadPrivateChat, &privateNotif)
+	p.broadcast(&notifPayload, receivers)
 }
 
-func (p *PayloadHandler) HandleRoomNotification(sender *model.Client, notification *model.IncomeNotification) {
+func (p *PayloadHandler) HandleRoomNotification(sender *model.Client, input *dto.NotificationInput) {
 	// Search rooms
-	room, err := p.roomManager.GetRoomById(notification.Receiver)
+	room, err := p.roomManager.GetRoomById(input.Receiver)
 	if err != nil {
 		return
 	}
 
-	roomNotification, err := p.chatService.HandleNewRoomNotification(sender, notification)
+	notifOutput, err := p.chatService.NewNotification(sender.UserId, input)
 	if err != nil {
 		return
 	}
 
 	// Broadcast
-	payload := model.NewPayload(model.PayloadRoomNotification, &roomNotification)
+	payload := model.NewPayloadOutput(model.PayloadRoomNotification, &notifOutput)
 	room.Broadcast(&payload, sender.Id)
 }
 
-func (p *PayloadHandler) HandlePrivateChat(sender *model.Client, chat *model.IncomeMessage) {
-	receivers := p.clientManager.GetClientsByUserId(chat.Receiver)
-	if len(receivers) == 0 {
-		return
-	}
+func (p *PayloadHandler) HandlePrivateChat(sender *model.Client, input *dto.MessageInput) {
+	receivers := p.clientManager.GetClientsByUserId(input.Receiver)
 
-	privateMessage, err := p.chatService.HandleNewPrivateMessage(sender, chat)
+	privateMessage, err := p.chatService.NewMessage(sender, input)
 	if err.IsError() {
 		return
 	}
@@ -165,103 +173,154 @@ func (p *PayloadHandler) HandlePrivateChat(sender *model.Client, chat *model.Inc
 	// Send to all clients for the same user id
 	senders := p.clientManager.GetUniqueClientByUserId(sender)
 	if len(senders) >= 1 {
-		forwardMessage := model.NewOutcomeMessageForward(receivers[0], &privateMessage)
-		forwardPayload := model.NewPayload(model.PayloadForwarder, &forwardMessage)
-		for _, c := range senders {
-			c.SendPayload(&forwardPayload)
-		}
+		forwardMessage := dto.NewMessageForward(input.Receiver, &privateMessage)
+		util.ForwardPayload(senders, model.PayloadMessageForwarder, &forwardMessage)
 	}
 
-	privateMessagePayload := model.NewPayload(model.PayloadPrivateChat, &privateMessage)
-	for _, c := range receivers {
-		c.SendPayload(&privateMessagePayload)
-	}
+	payloadOutput := model.NewPayloadOutput(model.PayloadPrivateChat, &privateMessage)
+	p.broadcast(&payloadOutput, receivers)
 }
 
-func (p *PayloadHandler) HandleRoomChat(sender *model.Client, chat *model.IncomeMessage) {
+func (p *PayloadHandler) HandleRoomChat(sender *model.Client, input *dto.MessageInput) {
 	// Search rooms
-	// TODO: Room is saved on redis, so each application starts it should take from redis
-	room, err := p.roomManager.GetRoomById(chat.Receiver)
-	if err != nil {
-		return
-	}
+	room, _ := p.roomManager.GetRoomById(input.Receiver)
 
-	roomMessage, err := p.chatService.HandleNewRoomMessage(sender, chat)
-	if err != nil {
-		return
+	messageOutput, cerr := p.chatService.NewMessage(sender, input)
+	if cerr.IsError() {
+		log.Println(cerr.Error())
 	}
 
 	// Broadcast
-	payload := model.NewPayload(model.PayloadRoomChat, &roomMessage)
+	payload := model.NewPayloadOutput(model.PayloadRoomChat, &messageOutput)
 	room.Broadcast(&payload, sender.Id)
 }
 
-func (p *PayloadHandler) HandleCreateRoom(client *model.Client, createRoom *model.IncomeCreateRoom) {
-	outcome, err := p.chatService.HandleNewRoom(createRoom)
+func (p *PayloadHandler) HandleCreateRoom(sender *model.Client, input *dto.CreateRoomInput) {
+	output, err := p.roomService.CreateRoom(input)
 	if err.IsError() {
 		log.Println(err.Error())
 		return
 	}
-	room := model.NewRoom(createRoom.Name, createRoom.Private, client)
 
-	// Get each client for members, doing the same in private chat when the member is offline
-	// Client
-	room.AddClients(p.clientManager.GetClientsByUserId(client.Id)...)
-	// MemberIds
-	for _, m := range createRoom.MemberIds {
+	// Get all clients for sender and the members
+	members := make([]*model.Client, 0, len(input.MemberIds)*2)
+	senders := p.clientManager.GetClientsByUserId(sender.Id)
+	members = append(senders)
+	for _, m := range input.MemberIds {
 		clients := p.clientManager.GetClientsByUserId(m)
-		room.AddClients(clients...)
+		members = append(clients)
 	}
+
+	room := dto.NewChatRoom(&output, members...)
 	p.roomManager.AddRooms(room)
 
 	// respond with room_id
-	payload := model.NewPayload(model.PayloadCreateRoom, &outcome)
-	client.SendPayload(&payload)
+	util.SendSuccessPayload(sender, &output)
 }
 
-func (p *PayloadHandler) HandleJoinRoom(sender *model.Client, joinRoom *model.IncomeJoinRoom) {
-	room, err := p.roomManager.GetRoomById(joinRoom.RoomId)
+func (p *PayloadHandler) HandleJoinRoom(sender *model.Client, input *dto.JoinRoomInput) {
+	room, err := p.roomManager.GetRoomById(input.RoomId)
 	if err != nil {
-		log.Println(err)
+		util.SendErrorPayload(sender, common.ROOM_NOT_FOUND_ERROR, constant.MSG_ROOM_NOT_FOUND)
 		return
 	}
+
+	// Check if already joined
+	// TODO: Implement it on http too
+	if room.IsUserExist(sender.UserId) {
+		room.AddClients(sender) // Add clients already handle multiple same client perfectly
+		util.SendErrorPayload(sender, common.USER_ALREADY_ROOM_MEMBER, constant.MSG_JOIN_JOINED_ROOM)
+		return
+	}
+
 	if room.Private {
+		util.SendErrorPayload(sender, common.ROOM_IS_PRIVATE_ERROR, constant.MSG_JOIN_PRIVATE_ROOM)
 		return
 	}
 
-	if cerr := p.chatService.HandleJoinRoom(joinRoom); cerr.IsError() {
-		return
-	}
+	userIds, _ := p.roomService.AddUserIntoRoom(room.Id, dto.UserRoomInput{UserIds: []string{sender.UserId}})
+	for _, userId := range userIds.UserIds {
+		room.AddClients(p.clientManager.GetClientsByUserId(userId)...)
+		// Give notification to all users in room
+		notifInput := dto.NotificationInput{
+			Type:     model.NotifJoinRoom,
+			Receiver: input.RoomId,
+		}
 
-	room.AddClients(p.clientManager.GetClientsByUserId(sender.UserId)...)
-	// Give notification to all users in room
-	incomeNotif := model.IncomeNotification{
-		Type:     model.NotifJoinRoom,
-		Receiver: joinRoom.RoomId,
+		notifOutput, _ := p.chatService.NewNotification(userId, &notifInput)
+
+		// Broadcast
+		payload := model.NewPayloadOutput(model.PayloadRoomNotification, &notifOutput)
+		room.Broadcast(&payload, userId)
 	}
-	p.HandleRoomNotification(sender, &incomeNotif)
 }
 
-func (p *PayloadHandler) HandleLeaveRoom(sender *model.Client, joinRoom *model.IncomeJoinRoom) {
-	room, err := p.roomManager.GetRoomById(joinRoom.RoomId)
+func (p *PayloadHandler) HandleLeaveRoom(sender *model.Client, input *dto.LeaveRoomInput) {
+	room, err := p.roomManager.GetRoomById(input.RoomId)
 	if err != nil {
-		log.Println(err)
+		util.SendErrorPayload(sender, common.ROOM_NOT_FOUND_ERROR, constant.MSG_ROOM_NOT_FOUND)
 		return
 	}
+	// Check if room's member
+	// TODO: Implement it on http too
+	if !room.IsUserExist(sender.UserId) {
+		util.SendErrorPayload(sender, common.USER_NOT_ROOM_MEMBER, constant.MSG_NOT_ROOM_MEMBER)
+		return
+	}
+
+	p.roomService.RemoveUsersOnRoom(room.Id, dto.UserRoomInput{UserIds: []string{sender.UserId}})
+
 	room.RemoveClientsByUserId(sender.UserId)
 
-	incomeNotif := model.IncomeNotification{
+	notifInput := dto.NotificationInput{
 		Type:     model.NotifLeaveRoom,
-		Receiver: joinRoom.RoomId,
+		Receiver: input.RoomId,
 	}
 
-	p.HandleRoomNotification(sender, &incomeNotif)
+	notifOutput, _ := p.chatService.NewNotification(sender.UserId, &notifInput)
+
+	// Broadcast
+	payload := model.NewPayloadOutput(model.PayloadRoomNotification, &notifOutput)
+	room.Broadcast(&payload, sender.UserId)
 }
 
-func (p *PayloadHandler) HandleGetUsers(client *model.Client, userPayload *model.IncomeGetUser) {
-	clients := p.clientManager.GetClientsByUsername(userPayload.Username)
+func (p *PayloadHandler) HandleInviteToRoom(sender *model.Client, input *dto.InviteRoomInput) {
+	room, err := p.roomManager.GetRoomById(input.RoomId)
+	if err != nil {
+		util.SendErrorPayload(sender, common.ROOM_NOT_FOUND_ERROR, constant.MSG_ROOM_NOT_FOUND)
+		return
+	}
+
+	// Check if the sender is group member
+	// TODO: Implement it on http too
+	if !room.IsUserExist(sender.UserId) {
+		util.SendErrorPayload(sender, common.USER_NOT_ROOM_MEMBER, constant.MSG_NOT_ROOM_MEMBER)
+		return
+	}
+
+	userIds, err := p.roomService.AddUserIntoRoom(room.Id, dto.UserRoomInput{UserIds: []string{sender.UserId}})
+	for _, userId := range userIds.UserIds {
+		room.AddClients(p.clientManager.GetClientsByUserId(userId)...)
+		// Give notification to all users in room
+		notifInput := dto.NotificationInput{
+			Type:     model.NotifJoinRoom,
+			Receiver: input.RoomId,
+		}
+
+		notifOutput, _ := p.chatService.NewNotification(userId, &notifInput)
+
+		// Broadcast
+		payload := model.NewPayloadOutput(model.PayloadRoomNotification, &notifOutput)
+		room.Broadcast(&payload, userId)
+	}
+}
+
+func (p *PayloadHandler) HandleGetUsers(sender *model.Client, input *dto.GetUserInput) {
 	// Send back with the users
-	outcomeGetUser := model.NewOutcomeGetUser(clients)
-	payload := model.NewPayload(model.PayloadGetUsers, &outcomeGetUser)
-	client.SendPayload(&payload)
+	output, err := p.chatService.GetUsersByName(input.Username)
+	if err.IsError() {
+		util.SendErrorPayload(sender, common.USER_NOT_FOUND_ERROR, constant.MSG_USER_NOT_FOUND)
+	} else {
+		util.SendSuccessPayload(sender, &output)
+	}
 }

@@ -20,8 +20,9 @@ type Server struct {
 
 func (s *Server) registerControllers(controllers ...controller.IController) {
 	middlewares := middleware.NewMiddleware(s.Config)
+	v1Router := s.Router.Group("/api/v1")
 	for _, c := range controllers {
-		c.Route(s.Router, &middlewares)
+		c.Route(v1Router, &middlewares)
 	}
 }
 

@@ -2,11 +2,9 @@ package manager
 
 import (
 	"errors"
-	"strings"
 	"sync"
 
 	"chatto/internal/model"
-	"chatto/internal/util"
 )
 
 type ClientList map[string]*model.Client
@@ -64,21 +62,6 @@ func (m *ClientManager) GetClientById(clientId string) (*model.Client, error) {
 	return client, nil
 }
 
-func (m *ClientManager) GetClientsByUsername(username string) []*model.Client {
-	m.clientsMutex.RLock()
-	defer m.clientsMutex.RUnlock()
-
-	username = strings.ToLower(username)
-	clientMaps := make(map[string]*model.Client)
-	for _, c := range m.clients {
-		if strings.Contains(strings.ToLower(c.Username), username) {
-			clientMaps[c.UserId] = c
-		}
-	}
-
-	return util.MapValues(clientMaps)
-}
-
 func (m *ClientManager) RemoveClientsByUserId(userId string) {
 	clients := m.GetClientsByUserId(userId)
 	if len(clients) == 0 {
@@ -101,15 +84,4 @@ func (m *ClientManager) RemoveClientById(clientId string) {
 	m.clientsMutex.Lock()
 	delete(m.clients, client.Id)
 	m.clientsMutex.Unlock()
-}
-
-func (m *ClientManager) Broadcast(payload *model.Payload, excludeIds ...string) {
-	for _, client := range m.clients {
-		// Check if the client id is excluded
-		if !util.IsExist(excludeIds, func(current string) bool {
-			return current == client.Id
-		}) {
-			client.SendPayload(payload)
-		}
-	}
 }

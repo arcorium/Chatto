@@ -3,12 +3,12 @@ package middleware
 import (
 	"chatto/internal/constant"
 	"chatto/internal/model/common"
+	"chatto/internal/util/httputil"
 
 	"errors"
 	"net/http"
 	"strings"
 
-	"chatto/internal/model"
 	"chatto/internal/util"
 
 	"github.com/golang-jwt/jwt"
@@ -34,61 +34,53 @@ func (a *TokenValidationMiddleware) Handle() gin.HandlerFunc {
 		// Get the value
 		data := c.GetHeader("Authorization")
 
-		// Parse
-		token, err := a.parseToken(data)
+		_, tokenString, err := a.splitHeaderValue(data)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
+			httputil.ErrorResponse(c, http.StatusUnauthorized, common.NewError(common.AUTH_UNAUTHORIZED, err.Error()))
+			c.Abort()
+			return
+		}
+		// Parse
+		token, err := a.parseToken(tokenString)
+		if err != nil {
+			httputil.ErrorResponse(c, http.StatusUnauthorized, common.NewError(common.AUTH_UNAUTHORIZED, constant.MSG_BAD_FORMAT_TOKEN))
+			c.Abort()
 			return
 		}
 
 		// Validate
 		err = a.validateToken(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, err.Error(), nil))
+			httputil.ErrorResponse(c, http.StatusUnauthorized, common.NewError(common.AUTH_TOKEN_NOT_VALIDATED_ERROR, err.Error()))
+			c.Abort()
 			return
 		}
 
 		// Set claims on context
-		mapClaims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
+		claims, err := util.GetAccessTokenClaims(token.Claims)
+		if err != nil {
+			httputil.ErrorResponse(c, http.StatusUnauthorized, common.NewError(common.AUTH_UNAUTHORIZED, err.Error()))
+			c.Abort()
 			return
 		}
-
-		userId := mapClaims["user_id"]
-		refreshId := mapClaims["refresh_id"]
-		if userId == nil || refreshId == nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, common.NewErrorResponse(http.StatusUnauthorized, constant.ERR_TOKEN_FORMAT, nil))
-			return
-		}
-
-		claims := model.AccessTokenClaims{
-			UserId:    userId.(string),
-			RefreshId: refreshId.(string),
-		}
-		c.Set(KEY_JWT_CLAIMS, claims)
+		c.Set(constant.KEY_JWT_CLAIMS, &claims)
 
 		c.Next()
 	}
 }
 
-func (a *TokenValidationMiddleware) parseToken(fullToken string) (*jwt.Token, error) {
-	_, tokenString, err := a.splitHeaderValue(fullToken)
-	if err != nil {
-		return nil, err
-	}
-
-	return util.ParseToken(tokenString, true, a.Config.SecretKeyFunc)
+func (a *TokenValidationMiddleware) parseToken(tokenString string) (*jwt.Token, error) {
+	return util.ParseToken(tokenString, a.Config.SecretKeyFunc)
 }
 
 func (a *TokenValidationMiddleware) splitHeaderValue(value string) (string, string, error) {
 	if len(value) == 0 {
-		return "", "", errors.New(constant.ERR_NO_ACCESS_TOKEN)
+		return "", "", errors.New(constant.MSG_NO_ACCESS_TOKEN)
 	}
 
 	splitData := strings.Split(value, " ")
 	if len(splitData) != 2 {
-		return "", "", errors.New(constant.ERR_TOKEN_FORMAT)
+		return "", "", errors.New(constant.MSG_BAD_FORMAT_TOKEN)
 	}
 
 	return splitData[0], splitData[1], nil
@@ -96,7 +88,7 @@ func (a *TokenValidationMiddleware) splitHeaderValue(value string) (string, stri
 
 func (a *TokenValidationMiddleware) validateToken(token *jwt.Token) error {
 	if token.Method.Alg() != a.Config.SigningType {
-		return errors.New(constant.ERR_TOKEN_FORMAT)
+		return errors.New(constant.MSG_BAD_FORMAT_TOKEN)
 	}
-	return nil
+	return util.ValidateToken(token.Raw, a.Config.SecretKeyFunc)
 }

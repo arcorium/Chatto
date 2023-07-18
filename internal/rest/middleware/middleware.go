@@ -20,8 +20,3 @@ type Middleware struct {
 	TokenValidation TokenValidationMiddleware
 	UserAgent       UserAgentValidationMiddleware
 }
-
-const (
-	KEY_USER_AGENT = "system"
-	KEY_JWT_CLAIMS = "claims"
-)

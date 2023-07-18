@@ -5,16 +5,19 @@ import (
 )
 
 const (
-	PayloadForwarder           = "forwarder"
-	PayloadPrivateNotification = "private-notif"
-	PayloadRoomNotification    = "room-notif"
-	PayloadPrivateChat         = "private-chat"
-	PayloadRoomChat            = "room-chat"
-	PayloadCreateRoom          = "create-room"
-	PayloadJoinRoom            = "join-room"
-	PayloadLeaveRoom           = "leave-room"
-	PayloadGetUsers            = "get-users"
-	PayloadError               = "error"
+	PayloadMessageForwarder      = "msg-forward"
+	PayloadNotificationForwarder = "notif-forward"
+	PayloadPrivateNotification   = "private-notif"
+	PayloadRoomNotification      = "room-notif"
+	PayloadPrivateChat           = "private-chat"
+	PayloadRoomChat              = "room-chat"
+	PayloadCreateRoom            = "create-room"
+	PayloadJoinRoom              = "join-room"
+	PayloadLeaveRoom             = "leave-room"
+	PayloadInviteToRoom          = "invite-room"
+	PayloadGetUsers              = "get-users"
+	PayloadErrorResponse         = "error"
+	PayloadSuccessResponse       = "success"
 )
 
 func Decode[T any](bytes []byte) (T, error) {
@@ -23,73 +26,53 @@ func Decode[T any](bytes []byte) (T, error) {
 	return t, err
 }
 
-func NewErrorPayload(message string) Payload {
-	return Payload{
-		Type: PayloadError,
-		Data: struct {
-			string `json:"message"`
-		}{message},
+func NewErrorPayloadOutput(code uint, message string) PayloadOutput {
+	return PayloadOutput{
+		Type: PayloadErrorResponse,
+		Data: ErrorPayload{
+			Code:    code,
+			Message: message,
+		},
 	}
 }
 
-func NewPayload[T any](types string, data *T) Payload {
-	return Payload{
+func NewPayloadOutput[T any](types string, data *T) PayloadOutput {
+	return PayloadOutput{
 		Type: types,
 		Data: *data,
 	}
 }
 
-type Payload struct {
-	Type     string `json:"type"`
-	ClientId string `json:"-"`
-	Data     any    `json:"data"`
+func NewPayload(client *Client, input *PayloadInput) Payload {
+	return Payload{
+		Type:   input.Type,
+		Data:   input.Data,
+		Client: client,
+	}
 }
 
-func (p *Payload) EncodeData() ([]byte, error) {
+type Payload struct {
+	Type string
+	Data any
+
+	Client *Client
+}
+
+func (p *Payload) DataBytes() ([]byte, error) {
 	return json.Marshal(p.Data)
 }
 
-func (p *Payload) Populate(client *Client) {
-	p.ClientId = client.Id
+type ErrorPayload struct {
+	Code    uint   `json:"code"`
+	Message string `json:"message"`
 }
 
-type ForwarderType uint8
-
-const (
-	ForwardNotification ForwarderType = iota
-	ForwardMessage
-)
-
-func NewOutcomeNotificationForward(receiver *Client, notification *OutcomePrivateNotification) OutcomeForward {
-	return OutcomeForward{
-		ReceiverId:       receiver.UserId,
-		Receiver:         receiver.Username,
-		SenderId:         notification.Sender,
-		Type:             ForwardNotification,
-		NotificationType: notification.Type,
-		Message:          notification.Message,
-		Timestamp:        notification.Timestamp,
-	}
+type PayloadInput struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
-func NewOutcomeMessageForward(receiver *Client, message *OutcomePrivateMessage) OutcomeForward {
-	return OutcomeForward{
-		ReceiverId:       receiver.UserId,
-		Receiver:         receiver.Username,
-		SenderId:         message.Sender,
-		Type:             ForwardMessage,
-		NotificationType: -1,
-		Message:          message.Message,
-		Timestamp:        message.Timestamp,
-	}
-}
-
-type OutcomeForward struct {
-	ReceiverId       string           `json:"receiver_id"`
-	Receiver         string           `json:"receiver"`
-	SenderId         string           `json:"sender_id"` // Used for testing
-	Type             ForwarderType    `json:"type"`
-	NotificationType NotificationType `json:"notification_type"` // Only used when the forwarded payload is notification
-	Message          string           `json:"message"`
-	Timestamp        int64            `json:"ts"`
+type PayloadOutput struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }

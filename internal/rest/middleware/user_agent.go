@@ -3,6 +3,7 @@ package middleware
 import (
 	"chatto/internal/constant"
 	"chatto/internal/model/common"
+	"chatto/internal/util/httputil"
 
 	"net/http"
 
@@ -20,13 +21,14 @@ func (u *UserAgentValidationMiddleware) Handle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userAgent := c.GetHeader("User-Agent")
 		if len(userAgent) == 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, common.NewErrorResponse(http.StatusBadRequest, constant.ERR_USER_AGENT_MIDDLEWARE, nil))
+			httputil.ErrorResponse(c, http.StatusBadRequest, common.NewError(common.USER_AGENT_UNKNOWN_ERROR, constant.MSG_USER_AGENT_UNKNOWN))
+			c.Abort()
 			return
 		}
 
 		systemInfo := u.parseUserAgent(userAgent)
 
-		c.Set(KEY_USER_AGENT, systemInfo)
+		c.Set(constant.KEY_USER_AGENT, &systemInfo)
 		c.Next()
 	}
 }

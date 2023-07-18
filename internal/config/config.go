@@ -1,13 +1,20 @@
 package config
 
 import (
+	"chatto/internal/util/strutil"
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/golang-jwt/jwt"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/spf13/viper"
+)
+
+const (
+	accessTokenDuration  = time.Minute * 60
+	refreshTokenDuration = time.Hour * 24 * 90
 )
 
 type AppConfig struct {
@@ -24,6 +31,10 @@ type AppConfig struct {
 	JWTSigningType  string `mapstructure:"JWT_SIGNING_TYPE"`
 	JWTSecretKeyURI string `mapstructure:"JWT_SECRET_KEY_URI"`
 
+	// Duration is in minutes
+	AccessTokenDuration  uint64 `mapstructure:"ACCESS_TOKEN_DURATION"`
+	RefreshTokenDuration uint64 `mapstructure:"REFRESH_TOKEN_DURATION"`
+
 	JWTKeyFunc jwt.Keyfunc
 }
 
@@ -34,6 +45,8 @@ func LoadConfig(path string) (AppConfig, error) {
 
 	viper.SetDefault("LISTEN_IP", "localhost")
 	viper.SetDefault("LISTEN_PORT", 9999)
+	viper.SetDefault("ACCESS_TOKEN_DURATION", accessTokenDuration)
+	viper.SetDefault("REFRESH_TOKEN_DURATION", refreshTokenDuration)
 
 	if err := viper.ReadInConfig(); err != nil {
 		return AppConfig{}, err
@@ -45,13 +58,13 @@ func LoadConfig(path string) (AppConfig, error) {
 	err := viper.Unmarshal(&conf)
 	conf.Address = conf.Ip + ":" + conf.Port
 
-	if len(conf.UserDatabaseURI) == 0 {
+	if strutil.IsEmpty(conf.UserDatabaseURI) {
 		return conf, errors.New("database uri should not be absent, set DB_URI on env")
 	}
-	if len(conf.JWTSecretKey) == 0 && len(conf.JWTSecretKeyURI) == 0 {
+	if strutil.IsEmpty(conf.JWTSecretKey) && strutil.IsEmpty(conf.JWTSecretKeyURI) {
 		return conf, errors.New("JWT secret key should not be absent, set JWT_SECRET_KEY on env")
 	}
-	if len(conf.JWTSigningType) == 0 {
+	if strutil.IsEmpty(conf.JWTSigningType) {
 		return conf, errors.New("JWT Signing type should not be absent, set JWT_SIGNING_TYPE on env")
 	}
 

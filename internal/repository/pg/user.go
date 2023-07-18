@@ -1,12 +1,13 @@
-package repository
+package pg_repo
 
 import (
 	"chatto/internal/model"
+	"chatto/internal/repository"
 
 	"gorm.io/gorm"
 )
 
-func NewUserRepository(db *gorm.DB) IUserRepository {
+func NewUserRepository(db *gorm.DB) repository.IUserRepository {
 	return &userRepository{db: db}
 }
 
@@ -30,6 +31,12 @@ func (u userRepository) FindUserByName(name string) (*model.User, error) {
 	var user model.User
 	result := u.db.First(&user, "name = ?", name)
 	return &user, result.Error
+}
+
+func (u userRepository) FindUsersByLikelyName(name string) ([]model.User, error) {
+	var users []model.User
+	result := u.db.Find(&users, "name LIKE %?%", name)
+	return users, result.Error
 }
 
 func (u userRepository) UpdateUserById(id string, user *model.User) error {
