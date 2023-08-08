@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"chatto/internal/dto"
 	"chatto/internal/model"
 )
 
@@ -30,12 +31,14 @@ type IRoomRepository interface {
 	FindRooms() ([]model.Room, error)
 	FindRoomById(roomId string) (*model.Room, error)
 	DeleteRoomById(roomId string) error
+	FindRoomsByUserId(userId string) ([]model.Room, error)
 }
 
 type IUserRoomRepository interface {
 	GetUserIdsOnRoomById(roomId string) ([]string, error)
-	GetRoomIdsByUserId(userId string) ([]string, error)
-	AddUserIntoRoomById(userRoom *model.UserRoom) error
+	GetRoomMemberCountById(roomId string) (int64, error)
+	FindUserRoomsByUserId(userId string) ([]model.UserRoom, error)
+	FindUsersByRoomId(roomId string) ([]model.User, error)
 	AddUsersIntoRoomById(userRoom []model.UserRoom) error
 	RemoveUserFromRoomById(roomId string, userId string) error
 	RemoveAllUsersFromRoomById(roomId string) error
@@ -44,9 +47,18 @@ type IUserRoomRepository interface {
 }
 
 type IChatRepository interface {
-	CreateMessage(id string, message *model.Message) error
-	CreateNotification(id string, notif *model.Notification) error
-	FindChats() ([]model.Message, error)
+	// CreateMessage Will store new message
+	CreateMessage(message *model.Message) error
+	// CreateNotification Will store new notification
+	CreateNotification(notif *model.Notification) error
+	// FindRoomChats Used to get all chats based on the roomId and range time
+	FindRoomChats(request *dto.MessageRequest) ([]model.Message, error)
+	// FindRoomNotifications Used to get all notifications based on the roomId and range time
+	FindRoomNotifications(request *dto.NotificationRequest) ([]model.Notification, error)
+	// NewClient Used to either create new key or increment "online" key by 1
 	NewClient(client *model.Client) error
+	// RemoveClient Decrement "online" key by 1
 	RemoveClient(client *model.Client) error
+	// ResetClients Used to reset online field to 0
+	ResetClients() error
 }

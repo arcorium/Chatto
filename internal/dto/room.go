@@ -1,27 +1,30 @@
 package dto
 
 import (
-	"chatto/internal/model"
-	"chatto/internal/util/ctrutil"
-	"github.com/google/uuid"
 	"time"
+
+	"chatto/internal/model"
+	"chatto/internal/util/containers"
+	"github.com/google/uuid"
 )
 
 func NewCreateRoomOutput(room *model.Room) CreateRoomOutput {
 	return CreateRoomOutput{
-		Id:      room.Id,
-		Name:    room.Name,
-		Private: room.Private,
+		Id:         room.Id,
+		Name:       room.Name,
+		InviteOnly: room.InviteOnly,
+		Private:    room.Private,
 	}
 }
 
 func NewRoomFromCreateInput(room *CreateRoomInput) *model.Room {
-	// TODO: Handle userids
 	return &model.Room{
-		Id:        uuid.NewString(),
-		Name:      room.Name,
-		Private:   room.Private,
-		CreatedAt: time.Now(),
+		Id:          uuid.NewString(),
+		Name:        room.Name,
+		Description: room.Description,
+		InviteOnly:  room.InviteOnly,
+		Private:     room.Private,
+		CreatedAt:   time.Now(),
 	}
 }
 
@@ -29,53 +32,69 @@ func NewRoomFromCreateInput(room *CreateRoomInput) *model.Room {
 type CreateRoomInput struct {
 	Name        string   `json:"name" binding:"required"`
 	Description string   `json:"desc"`
+	InviteOnly  bool     `json:"invite_only"`
 	Private     bool     `json:"private"`
-	MemberIds   []string `json:"members"` // Initial members. TODO: MemberIds should be on sender friends
+	MemberIds   []string `json:"member_ids"` // Initial members. TODO: MemberIds should be on sender friends
 }
 
-// JoinRoomInput Used to join room, room by the roomId should check the private
-type JoinRoomInput struct {
+// RoomInput Used to join and leave room, room by the roomId should check the private
+type RoomInput struct {
 	RoomId string `json:"room_id"`
 }
 
-type LeaveRoomInput struct {
-	RoomId string `json:"room_id"`
-}
-
-// InviteRoomInput Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
-type InviteRoomInput struct {
+// MemberRoomInput Used to invite another clients to join the room, which will send the client either to accept or not (For now all the invited clients always accepting)
+type MemberRoomInput struct {
 	RoomId  string   `json:"room_id"`
 	UserIds []string `json:"user_ids"`
 }
 
-func NewChatRoom(roomOutput *CreateRoomOutput, clients ...*model.Client) *model.ChatRoom {
-	room := &model.ChatRoom{
-		Id:      roomOutput.Id,
-		Name:    roomOutput.Name,
-		Private: roomOutput.Private,
-		Clients: make(map[string]*model.Client),
+func NewChatRoomFromOutput(roomOutput *CreateRoomOutput, members ...*model.Client) *model.ChatRoom {
+	var room model.ChatRoom
+	if roomOutput.Private {
+		room = model.NewPrivateChatRoom(roomOutput.Id, roomOutput.Name, "", roomOutput.InviteOnly)
+	} else {
+		room = model.NewChatRoom(roomOutput.Id, roomOutput.Name, "", roomOutput.InviteOnly)
 	}
-	room.AddClients(clients...)
-	return room
+
+	room.AddClientsWithSameRole(model.RoomRoleUser, members...)
+	return &room
 }
 
 type CreateRoomOutput struct {
-	Id      string `json:"id"`
-	Name    string `json:"name"`
-	Private bool   `json:"private"`
-}
-
-type UserRoomInput struct {
-	UserIds []string `json:"users"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	InviteOnly bool   `json:"invite_only"`
+	Private    bool   `json:"private"`
 }
 
 func NewUserRoomOutput(userResponses []model.UserRoom) UserRoomOutput {
-	userIds := ctrutil.ConvertSliceType(userResponses, func(current *model.UserRoom) string {
-		return current.UserId
+	users := containers.ConvertSlice(userResponses, func(current *model.UserRoom) UserWithRole {
+		return UserWithRole{
+			UserId: current.UserId,
+			Role:   current.UserRole,
+		}
 	})
-	return UserRoomOutput{UserIds: userIds}
+	return UserRoomOutput{Users: users}
 }
 
 type UserRoomOutput struct {
-	UserIds []string `json:"users"`
+	Users []UserWithRole `json:"users"`
+}
+
+func NewRoomResponse(room *model.Room) RoomResponse {
+	return RoomResponse{
+		Id:          room.Id,
+		Name:        room.Name,
+		Description: room.Description,
+		InviteOnly:  room.InviteOnly,
+		Private:     room.Private,
+	}
+}
+
+type RoomResponse struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"desc"`
+	InviteOnly  bool   `json:"invite_only"`
+	Private     bool   `json:"private"`
 }

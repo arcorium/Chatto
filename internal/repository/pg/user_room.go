@@ -18,27 +18,36 @@ func (u userRoomRepository) db() *gorm.DB {
 	return u.db_.Debug()
 }
 
+func (u userRoomRepository) GetRoomMemberCountById(roomId string) (int64, error) {
+	var count int64
+	res := u.db().Model(&model.UserRoom{}).Where("room_id = ?", roomId).Count(&count)
+	return count, res.Error
+}
+
+func (u userRoomRepository) FindUserRoomsByUserId(userId string) ([]model.UserRoom, error) {
+	// TODO: Join with room table
+	var userRooms []model.UserRoom
+	err := u.db().Find(&userRooms, "user_id = ?", userId)
+	return userRooms, err.Error
+}
+
+func (u userRoomRepository) FindUsersByRoomId(roomId string) ([]model.User, error) {
+	// TODO: Join with user table
+	var users []model.User
+	result := u.db().Raw("SELECT users.* from user_rooms INNER JOIN users ON user_rooms.user_id = users.id WHERE user_rooms.room_id = ?", roomId).Scan(&users)
+	return users, result.Error
+}
+
 func (u userRoomRepository) GetUserIdsOnRoomById(roomId string) ([]string, error) {
 	var userIds []string
 	result := u.db().Find(&userIds, "room_id = ?", roomId)
 	return userIds, result.Error
 }
 
-func (u userRoomRepository) GetRoomIdsByUserId(userId string) ([]string, error) {
-	var roomIds []string
-	result := u.db().Find(&roomIds, "user_id = ?", userId)
-	return roomIds, result.Error
-}
-
-func (u userRoomRepository) AddUserIntoRoomById(userRoom *model.UserRoom) error {
-	result := u.db().Create(*userRoom)
-	return result.Error
-}
-
 func (u userRoomRepository) AddUsersIntoRoomById(userRoom []model.UserRoom) error {
 	return u.db().Transaction(func(tx *gorm.DB) error {
 		for _, data := range userRoom {
-			result := tx.Create(data)
+			result := tx.Create(&data)
 			if result.Error != nil {
 				return result.Error
 			}

@@ -1,6 +1,9 @@
 package middleware
 
-import "chatto/internal/config"
+import (
+	"chatto/internal/config"
+	"github.com/gin-gonic/gin"
+)
 
 func NewMiddleware(config *config.AppConfig) Middleware {
 	tokenValConf := TokenValidationConfig{
@@ -10,13 +13,19 @@ func NewMiddleware(config *config.AppConfig) Middleware {
 	}
 	userAgentValConf := UserAgentValidationConfig{}
 
+	middleware := TokenValidationMiddleware{Config: &tokenValConf}
+	validationMiddleware := UserAgentValidationMiddleware{Config: &userAgentValConf}
+	privilegeMiddleware := AdminPrivilegeMiddleware{}
+	
 	return Middleware{
-		TokenValidation: TokenValidationMiddleware{Config: &tokenValConf},
-		UserAgent:       UserAgentValidationMiddleware{Config: &userAgentValConf},
+		TokenValidation: middleware.Handle(),
+		UserAgent:       validationMiddleware.Handle(),
+		AdminPrivilege:  privilegeMiddleware.Handle(),
 	}
 }
 
 type Middleware struct {
-	TokenValidation TokenValidationMiddleware
-	UserAgent       UserAgentValidationMiddleware
+	TokenValidation gin.HandlerFunc
+	UserAgent       gin.HandlerFunc
+	AdminPrivilege  gin.HandlerFunc
 }

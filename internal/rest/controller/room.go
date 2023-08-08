@@ -1,15 +1,17 @@
 package controller
 
 import (
+	"net/http"
+
 	"chatto/internal/constant"
 	"chatto/internal/dto"
+	"chatto/internal/model"
 	"chatto/internal/model/common"
 	"chatto/internal/rest/middleware"
 	"chatto/internal/service"
 	"chatto/internal/util/httputil"
 	"chatto/internal/util/strutil"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 func NewRoomController(roomService service.IRoomService) IController {
@@ -21,11 +23,12 @@ type roomController struct {
 }
 
 func (r roomController) Route(router gin.IRouter, middlewares *middleware.Middleware) {
-	roomRoute := router.Group("/rooms", middlewares.UserAgent.Handle(), middlewares.TokenValidation.Handle())
-	roomRoute.GET("/", r.GetAllRoom)
+	roomRoute := router.Group("/rooms", middlewares.UserAgent, middlewares.TokenValidation, middlewares.AdminPrivilege)
 	roomRoute.GET("/:id", r.GetRoomById)
 	roomRoute.POST("/", r.CreateRoom)
 	roomRoute.DELETE("/:id", r.DeleteRoomById)
+
+	roomRoute.GET("/", r.GetAllRoom)
 }
 
 func (r roomController) AddUserIntoRoomById(ctx *gin.Context) {
@@ -35,14 +38,23 @@ func (r roomController) AddUserIntoRoomById(ctx *gin.Context) {
 		return
 	}
 
-	var userIds dto.UserRoomInput
-	if err := ctx.ShouldBind(&userIds); err != nil {
+	var input dto.UserRoomAddInput
+	if err := ctx.ShouldBind(&input); err != nil {
 		httputil.ErrorResponse(ctx, http.StatusBadRequest, common.NewError(common.BAD_BODY_REQUEST_ERROR, constant.MSG_BAD_BODY_REQUEST))
 		return
 	}
+	for i := 0; i < len(input.Users); i += 1 {
+		role := input.Users[i].Role
+		if strutil.IsEmpty(string(role)) {
+			input.Users[i].Role = model.RoomRoleUser
+		} else if role != model.RoomRoleUser && role != model.RoomRoleAdmin {
+			httputil.ErrorResponse(ctx, http.StatusBadRequest, common.NewError(common.ROOM_ROLE_NOT_FOUND_ERROR, constant.MSG_ROOM_ROLE_NOT_FOUND))
+			return
+		}
+	}
 
-	output, err := r.roomService.AddUserIntoRoom(roomId, userIds)
-	httputil.ConditionalResponse(ctx, err, http.StatusInternalServerError, http.StatusOK, output)
+	err := r.roomService.AddUsersInRoom(input, false)
+	httputil.ConditionalResponse(ctx, err, http.StatusInternalServerError, http.StatusOK, nil)
 }
 
 func (r roomController) RemoveUserFromRoomById(ctx *gin.Context) {
@@ -52,13 +64,13 @@ func (r roomController) RemoveUserFromRoomById(ctx *gin.Context) {
 		return
 	}
 
-	var userIds dto.UserRoomInput
-	if err := ctx.ShouldBind(&userIds); err != nil {
+	var input dto.UserRoomRemoveInput
+	if err := ctx.ShouldBind(&input); err != nil {
 		httputil.ErrorResponse(ctx, http.StatusBadRequest, common.NewError(common.BAD_BODY_REQUEST_ERROR, constant.MSG_BAD_BODY_REQUEST))
 		return
 	}
 
-	err := r.roomService.RemoveUsersOnRoom(roomId, userIds)
+	err := r.roomService.RemoveUsersInRoom(input)
 	httputil.ConditionalResponse(ctx, err, http.StatusInternalServerError, http.StatusOK, nil)
 }
 

@@ -1,14 +1,15 @@
 package service
 
 import (
-	"chatto/internal/constant"
-	"chatto/internal/dto"
-	"chatto/internal/model/common"
-	"chatto/internal/repository"
 	"errors"
 	"log"
 	"net/http"
 	"strings"
+
+	"chatto/internal/constant"
+	"chatto/internal/dto"
+	"chatto/internal/model/common"
+	"chatto/internal/repository"
 
 	"chatto/internal/config"
 	"chatto/internal/model"
@@ -26,25 +27,21 @@ type IAuthService interface {
 	RefreshToken(input *dto.RefreshTokenInput) (dto.RefreshTokenOutput, common.Error)
 }
 
-func NewAuthService(conf *config.AppConfig, authRepos repository.IAuthRepository, userRepos repository.IUserRepository) IAuthService {
-	return &authService{config: conf, authRepos: authRepos, userRepos: userRepos}
+func NewAuthService(conf *config.AppConfig, authRepos repository.IAuthRepository, userService IUserService) IAuthService {
+	return &authService{config: conf, authRepos: authRepos, userService: userService}
 }
 
 type authService struct {
 	config    *config.AppConfig
 	authRepos repository.IAuthRepository
-	userRepos repository.IUserRepository
+
+	userService IUserService
 }
 
 func (a *authService) SignIn(input *dto.SignInInput, sysInfo *common.SystemInfo) (dto.SignInOutput, common.Error) {
 	// Check Credential
-	user, err := a.userRepos.FindUserByName(input.Username)
-	if err != nil {
-		return dto.SignInOutput{}, common.NewError(common.INTERNAL_REPOSITORY_ERROR, constant.MSG_FAILED_USER_LOGIN)
-	}
-
-	err = util.ValidatePassword(user.Password, input.Password)
-	if err != nil {
+	user, cerr := a.userService.FindAndValidateUserByName(input.Username, input.Password)
+	if cerr.IsError() {
 		return dto.SignInOutput{}, common.NewError(common.AUTH_TOKEN_NOT_VALIDATED_ERROR, constant.MSG_FAILED_USER_LOGIN)
 	}
 
@@ -59,24 +56,25 @@ func (a *authService) SignIn(input *dto.SignInInput, sysInfo *common.SystemInfo)
 	}
 
 	// Access Token
-	accessToken, err := a.generateAccessToken(user, refreshToken.Id)
+	accessToken, err := a.generateAccessToken(&user, refreshToken.Id)
 	return dto.NewSignInOutput(accessToken), common.NewConditionalError(err, common.CREATE_TOKEN_ERROR, constant.MSG_FAILED_USER_LOGIN)
 }
 
 func (a *authService) SignUp(input *dto.SignUpInput) common.Error {
-	password, err := util.HashPassword(input.Password)
-	if err != nil {
+	user := dto.NewUserFromSignUpInput(input)
+	if !user.Validate() {
 		return common.NewError(common.HASH_PASSWORD_ERROR, constant.MSG_FAILED_SIGNUP)
 	}
-	input.Password = password
-
-	user := dto.NewUserFromSignUpInput(input)
-	err = a.userRepos.CreateUser(&user)
-	return common.NewConditionalError(err, common.USER_SIGNUP_ERROR, constant.MSG_FAILED_SIGNUP)
+	err := a.userService.CreateUser(&dto.CreateUserInput{
+		Username: input.Username,
+		Email:    input.Email,
+		Password: input.Password,
+	})
+	return common.NewConditionalError(err.Error(), common.USER_SIGNUP_ERROR, constant.MSG_FAILED_SIGNUP)
 }
 func (a *authService) GetLoginDevices(userId string) ([]model.Device, common.Error) {
 	devices, err := a.authRepos.FindDevicesByUserId(userId)
-	return devices, common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_INTERNAL_SERVER_ERROR)
+	return devices, common.NewConditionalError(err, common.INTERNAL_SERVER_ERROR, constant.MSG_INTERNAL_SERVER_ERROR)
 }
 func (a *authService) Logout(userId string, refreshId string) common.Error {
 	refreshToken, err := a.authRepos.FindTokenById(refreshId)
@@ -89,12 +87,12 @@ func (a *authService) Logout(userId string, refreshId string) common.Error {
 		return common.NewError(common.AUTH_TOKEN_BAD_OWNERSHIP_ERROR, constant.MSG_LOGOUT_FAILED)
 	}
 	err = a.authRepos.RemoveTokenById(refreshId)
-	return common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_LOGOUT_FAILED)
+	return common.NewConditionalError(err, common.INTERNAL_SERVER_ERROR, constant.MSG_LOGOUT_FAILED)
 }
 
 func (a *authService) LogoutAllDevice(userId string) common.Error {
 	err := a.authRepos.RemoveTokensByUserId(userId)
-	return common.NewConditionalError(err, common.INTERNAL_REPOSITORY_ERROR, constant.MSG_LOGOUT_FAILED)
+	return common.NewConditionalError(err, common.INTERNAL_SERVER_ERROR, constant.MSG_LOGOUT_FAILED)
 }
 
 func (a *authService) RefreshToken(input *dto.RefreshTokenInput) (dto.RefreshTokenOutput, common.Error) {
@@ -112,8 +110,8 @@ func (a *authService) RefreshToken(input *dto.RefreshTokenInput) (dto.RefreshTok
 	}
 
 	// Check if the user id is exists
-	user, err := a.userRepos.FindUserById(accessClaims.UserId)
-	if err != nil {
+	user, cerr := a.userService.FindUserById(accessClaims.UserId)
+	if cerr.IsError() {
 		// Delete all refresh id belong to it because it can be malicious action because there is no such user
 		err = a.authRepos.RemoveTokensByUserId(accessClaims.UserId)
 		if err != nil {
@@ -151,11 +149,11 @@ func (a *authService) RefreshToken(input *dto.RefreshTokenInput) (dto.RefreshTok
 	}
 
 	// Generate new access token
-	accessToken, err := a.generateAccessToken(user, refreshToken.Id)
+	accessToken, err := a.generateAccessToken(&user, refreshToken.Id)
 	return dto.NewRefreshTokenOutput(accessToken), common.NewConditionalError(err, common.CREATE_TOKEN_ERROR, constant.MSG_TOKEN_REFRESH_FAILED)
 }
 
-func (a *authService) generateAccessToken(user *model.User, refreshId string) (string, error) {
+func (a *authService) generateAccessToken(user *dto.UserResponse, refreshId string) (string, error) {
 	accessClaims := make(jwt.MapClaims)
 	accessClaims["user_id"] = user.Id
 	accessClaims["name"] = user.Name

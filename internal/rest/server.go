@@ -16,13 +16,13 @@ type Server struct {
 	UserService service.IUserService
 	AuthService service.IAuthService
 	RoomService service.IRoomService
+	Middleware  *middleware.Middleware
 }
 
 func (s *Server) registerControllers(controllers ...controller.IController) {
-	middlewares := middleware.NewMiddleware(s.Config)
 	v1Router := s.Router.Group("/api/v1")
 	for _, c := range controllers {
-		c.Route(v1Router, &middlewares)
+		c.Route(v1Router, s.Middleware)
 	}
 }
 

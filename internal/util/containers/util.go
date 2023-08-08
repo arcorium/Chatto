@@ -1,7 +1,35 @@
-package ctrutil
+package containers
 
 func IsEmpty[T any](data []T) bool {
 	return len(data) == 0
+}
+
+func SliceContains[T comparable](data []T, elements ...T) bool {
+	for i := range elements {
+		found := false
+		for j := range data {
+			if elements[i] == data[j] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func SliceFilter[T comparable](data []T, filterFunc func(current *T) bool) []T {
+	result := make([]T, len(data), 0)
+
+	for i := range data {
+		if filterFunc(&data[i]) {
+			result = append(result, data[i])
+		}
+	}
+
+	return result
 }
 
 type EqualFunc[T any] func(current T) bool
@@ -62,8 +90,8 @@ func MapKeys[K comparable, V any](maps map[K]V) []K {
 type SafeConvertFunc[From any, To any] func(current From) (To, error)
 type ConvertFunc[From any, To any] func(current From) To
 
-// SafeConvertSliceType Used to convert []From into []To based on function parameter with error checking
-func SafeConvertSliceType[From any, To any](slice []From, convertFunc SafeConvertFunc[*From, To]) ([]To, error) {
+// SafeConvertSlice Used to convert []From into []To based on function parameter with error checking
+func SafeConvertSlice[From any, To any](slice []From, convertFunc SafeConvertFunc[*From, To]) ([]To, error) {
 	result := make([]To, 0, len(slice))
 	for _, val := range slice {
 		cur, err := convertFunc(&val)
@@ -75,11 +103,20 @@ func SafeConvertSliceType[From any, To any](slice []From, convertFunc SafeConver
 	return result, nil
 }
 
-// ConvertSliceType Used to convert []From into []To based on function parameter without error checking, use it when the object conversion is always success
-func ConvertSliceType[From any, To any](slice []From, convertFunc ConvertFunc[*From, To]) []To {
+// ConvertSlice Used to convert []From into []To based on function parameter without error checking, use it when the object conversion never fail
+func ConvertSlice[From any, To any](slice []From, convertFunc ConvertFunc[*From, To]) []To {
 	result := make([]To, 0, len(slice))
 	for _, val := range slice {
 		result = append(result, convertFunc(&val))
+	}
+	return result
+}
+
+// ConvertSlicePtr Works like ConvertSlice but the parameter on convertFunc will not be pointer, use this when the slice is already pointer
+func ConvertSlicePtr[From any, To any](slice []From, convertFunc ConvertFunc[From, To]) []To {
+	result := make([]To, 0, len(slice))
+	for _, val := range slice {
+		result = append(result, convertFunc(val))
 	}
 	return result
 }

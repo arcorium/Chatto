@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"chatto/internal/model"
+	"chatto/internal/util/containers"
 )
 
 type ClientList map[string]*model.Client
@@ -40,6 +41,8 @@ func (m *ClientManager) GetClientsByUserId(userId string) []*model.Client {
 	}
 	return clients
 }
+
+// GetUniqueClientByUserId Used for get all clients with same UserId like GetClientsByUserId with exception to the parameter client id, so the returned client slice will not contain the client parameter
 func (m *ClientManager) GetUniqueClientByUserId(client *model.Client) []*model.Client {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
@@ -84,4 +87,14 @@ func (m *ClientManager) RemoveClientById(clientId string) {
 	m.clientsMutex.Lock()
 	delete(m.clients, client.Id)
 	m.clientsMutex.Unlock()
+}
+
+func (m *ClientManager) StopClientChannels() {
+	for _, client := range m.clients {
+		close(client.IncomingPayload)
+	}
+}
+
+func (m *ClientManager) Clients() []*model.Client {
+	return containers.MapValues(m.clients)
 }

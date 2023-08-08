@@ -35,6 +35,12 @@ func (r roomRepository) FindRoomById(roomId string) (*model.Room, error) {
 	return &room, result.Error
 }
 
+func (r roomRepository) FindRoomsByUserId(userId string) ([]model.Room, error) {
+	var rooms []model.Room
+	result := r.db().Raw("SELECT rooms.* FROM user_rooms INNER JOIN rooms ON rooms.id = user_rooms.room_id WHERE user_rooms.user_id = ?", userId).Scan(&rooms)
+	return rooms, result.Error
+}
+
 func (r roomRepository) DeleteRoomById(roomId string) error {
 	result := r.db().Delete(&model.Room{}, "id = ?", roomId)
 	return result.Error

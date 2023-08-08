@@ -1,13 +1,14 @@
 package controller
 
 import (
+	"log"
+	"net/http"
+
 	"chatto/internal/constant"
 	"chatto/internal/dto"
 	"chatto/internal/model/common"
 	"chatto/internal/util/httputil"
 	"chatto/internal/util/strutil"
-	"log"
-	"net/http"
 
 	"chatto/internal/model"
 	"chatto/internal/rest/middleware"
@@ -26,11 +27,14 @@ type userController struct {
 }
 
 func (u userController) Route(router gin.IRouter, middlewares *middleware.Middleware) {
-	userRoute := router.Group("/users", middlewares.UserAgent.Handle(), middlewares.TokenValidation.Handle())
-	userRoute.GET("/", u.GetUsers)
+	userRoute := router.Group("/users", middlewares.UserAgent, middlewares.TokenValidation)
 	userRoute.GET("/:id", u.GetUserById)
 	userRoute.PUT("/:id", u.UpdateUser)
 	userRoute.DELETE("/:id", u.RemoveUser)
+
+	userRoute.Use(middlewares.AdminPrivilege)
+	userRoute.GET("/", u.GetUsers)
+	userRoute.POST("/", u.CreateUser)
 }
 
 func (u userController) CreateUser(ctx *gin.Context) {
@@ -75,6 +79,10 @@ func (u userController) UpdateUser(ctx *gin.Context) {
 	if strutil.IsEmpty(userId) {
 		httputil.ErrorResponse(ctx, http.StatusBadRequest, common.NewError(common.BAD_PARAMETER_ERROR, constant.MSG_URI_PARAM_MISSING))
 		return
+	}
+	if userId == "me" {
+		accessClaims, _ := util.GetContextValue[model.AccessTokenClaims](constant.KEY_JWT_CLAIMS, ctx)
+		userId = accessClaims.UserId
 	}
 
 	var user dto.UpdateUserInput

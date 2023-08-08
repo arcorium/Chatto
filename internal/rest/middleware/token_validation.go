@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"chatto/internal/constant"
+	"chatto/internal/model"
 	"chatto/internal/model/common"
 	"chatto/internal/util/httputil"
 
@@ -57,7 +58,7 @@ func (a *TokenValidationMiddleware) Handle() gin.HandlerFunc {
 		}
 
 		// Set claims on context
-		claims, err := util.GetAccessTokenClaims(token.Claims)
+		claims, err := a.GetAccessTokenClaims(token.Claims)
 		if err != nil {
 			httputil.ErrorResponse(c, http.StatusUnauthorized, common.NewError(common.AUTH_UNAUTHORIZED, err.Error()))
 			c.Abort()
@@ -91,4 +92,51 @@ func (a *TokenValidationMiddleware) validateToken(token *jwt.Token) error {
 		return errors.New(constant.MSG_BAD_FORMAT_TOKEN)
 	}
 	return util.ValidateToken(token.Raw, a.Config.SecretKeyFunc)
+}
+
+func (a *TokenValidationMiddleware) GetAccessTokenClaims(claims jwt.Claims) (model.AccessTokenClaims, error) {
+	result := model.AccessTokenClaims{}
+	rawClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		return result, errors.New("broken claims")
+	}
+	userId_, exist := rawClaims["user_id"]
+	if !exist {
+		return result, errors.New(constant.MSG_BAD_FORMAT_TOKEN)
+	}
+	refreshId_, exist := rawClaims["refresh_id"]
+	if !exist {
+		return result, errors.New(constant.MSG_BAD_FORMAT_TOKEN)
+	}
+	role_, exist := rawClaims["role"]
+	if !exist {
+		return result, errors.New(constant.MSG_BAD_FORMAT_TOKEN)
+	}
+	name_, exist := rawClaims["name"]
+	if !exist {
+		return result, errors.New(constant.MSG_BAD_FORMAT_TOKEN)
+	}
+
+	userId, ok := userId_.(string)
+	if !ok {
+		return result, errors.New(constant.MSG_TOKEN_FIELD_INVALID_TYPE)
+	}
+	refreshId, ok := refreshId_.(string)
+	if !ok {
+		return result, errors.New(constant.MSG_TOKEN_FIELD_INVALID_TYPE)
+	}
+	role, ok := role_.(string)
+	if !ok {
+		return result, errors.New(constant.MSG_TOKEN_FIELD_INVALID_TYPE)
+	}
+	name, ok := name_.(string)
+	if !ok {
+		return result, errors.New(constant.MSG_TOKEN_FIELD_INVALID_TYPE)
+	}
+
+	result.UserId = userId
+	result.Name = name
+	result.Role = model.Role(role)
+	result.RefreshId = refreshId
+	return result, nil
 }

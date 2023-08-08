@@ -1,5 +1,6 @@
-/client
 /.idea
 
 *.env
 *.iml
+*.txt
+*.json*

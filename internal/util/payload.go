@@ -1,20 +1,22 @@
 package util
 
-import "chatto/internal/model"
+import (
+	"chatto/internal/model"
+	"chatto/internal/model/common"
+)
 
-func ForwardPayload[T any](senders []*model.Client, types string, outputData *T) {
-	forwardPayload := model.NewPayloadOutput(types, outputData)
-	for _, c := range senders {
-		c.SendPayload(&forwardPayload)
-	}
-}
-
-func SendErrorPayload(receiver *model.Client, code uint, message string) {
-	payload := model.NewErrorPayloadOutput(code, message)
+func SendErrorPayload(receiver *model.Client, err common.Error) {
+	payload := model.NewErrorPayloadOutput(err.ErrorCode, err.Message())
 	receiver.SendPayload(&payload)
 }
 
 func SendSuccessPayload[T any](receiver *model.Client, outputData *T) {
 	payload := model.NewPayloadOutput(model.PayloadSuccessResponse, outputData)
+	receiver.SendPayload(&payload)
+}
+
+func SendNilSuccessPayload(receiver *model.Client) {
+	var t *int
+	payload := model.NewPayloadOutput(model.PayloadSuccessResponse, t)
 	receiver.SendPayload(&payload)
 }

@@ -2,7 +2,6 @@ package dto
 
 import (
 	"chatto/internal/model"
-	"github.com/google/uuid"
 )
 
 type SignInInput struct {
@@ -23,12 +22,7 @@ type SignInOutput struct {
 }
 
 func NewUserFromSignUpInput(input *SignUpInput) model.User {
-	return model.User{
-		Id:       uuid.NewString(),
-		Name:     input.Username,
-		Email:    input.Email,
-		Password: input.Password,
-	}
+	return model.NewUser(input.Username, input.Email, input.Password, model.UserRole)
 }
 
 type SignUpInput struct {

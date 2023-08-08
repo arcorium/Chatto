@@ -1,29 +1,30 @@
 package dto
 
 import (
+	"time"
+
 	"chatto/internal/model"
+	"chatto/internal/util/strutil"
 )
 
 func NewUserFromCreateInput(input *CreateUserInput) model.User {
-	return model.User{
-		Name:     input.Username,
-		Email:    input.Email,
-		Password: input.Password,
+	if strutil.IsEmpty(string(input.Role)) {
+		input.Role = model.UserRole
 	}
+	return model.NewUser(input.Username, input.Email, input.Password, input.Role)
 }
 
 func NewUserFromUpdateInput(input *UpdateUserInput) model.User {
-	return model.User{
-		Name:     input.Username,
-		Email:    input.Email,
-		Password: input.Password,
-	}
+	user := model.NewUser(input.Username, input.Email, input.Password)
+	user.UpdatedAt = time.Now()
+	return user
 }
 
 type CreateUserInput struct {
-	Username string `json:"username" binding:"required"`
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string     `json:"username" binding:"required"`
+	Email    string     `json:"email" binding:"required"`
+	Password string     `json:"password" binding:"required"`
+	Role     model.Role `json:"role"`
 }
 
 type UpdateUserInput struct {
@@ -33,17 +34,17 @@ type UpdateUserInput struct {
 }
 
 type UserResponse struct {
-	Id       string     `json:"id"`
-	Username string     `json:"username"`
-	Role     model.Role `json:"role"`
-	// TODO: Add status, so when user search the name it will know either the user is current online or no
+	Id   string     `json:"id"`
+	Name string     `json:"username"`
+	Role model.Role `json:"role"`
+	// TODO: Add status, so when user search the name it will know either the user is online or no
 }
 
 func NewUserResponse(user *model.User) UserResponse {
 	return UserResponse{
-		Id:       user.Id,
-		Username: user.Name,
-		Role:     user.Role,
+		Id:   user.Id,
+		Name: user.Name,
+		Role: user.Role,
 	}
 }
 

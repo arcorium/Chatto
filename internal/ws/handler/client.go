@@ -1,44 +1,42 @@
 package handler
 
 import (
-	"chatto/internal/constant"
 	"log"
-	"time"
 
 	"chatto/internal/model"
 	"chatto/internal/service"
-	"chatto/internal/ws/manager"
 
 	"github.com/gorilla/websocket"
 )
 
-func StartClientHandler(chatService service.IChatService, clientManager *manager.ClientManager, client <-chan *model.Client, payload chan<- *model.Payload) {
+func StartClientHandler(chatService service.IChatService, client <-chan *model.Client, payload chan<- *model.Payload) {
 	handler := &ClientHandler{
-		chatService:   chatService,
-		clientManager: clientManager,
-		payload:       payload,
-		client:        client,
+		chatService: chatService,
+		payload:     payload,
+		client:      client,
 	}
 
 	go handler.ClientHandle()
 }
 
 type ClientHandler struct {
-	chatService   service.IChatService
-	clientManager *manager.ClientManager
-	payload       chan<- *model.Payload
-	client        <-chan *model.Client
+	payload chan<- *model.Payload
+	client  <-chan *model.Client
+
+	chatService service.IChatService
 }
 
 func (c *ClientHandler) ClientHandle() {
-	for {
-		select {
-		case client := <-c.client:
-			c.registerClient(client)
-			go c.ClientReadHandle(client)
-			go c.ClientWriteHandle(client)
+	for client := range c.client {
+		if c.registerClient(client) != nil {
+			c.unregisterClient(client)
+			continue
 		}
+		go c.ClientReadHandle(client)
+		go c.ClientWriteHandle(client)
 	}
+
+	log.Println("Client Stopped")
 }
 
 // ClientReadHandle Handle for reading each client message
@@ -49,56 +47,41 @@ func (c *ClientHandler) ClientReadHandle(client *model.Client) {
 		}
 	}()
 
-	// TODO: Handle read timeout
-	client.Conn.SetReadLimit(constant.CLIENT_READ_LIMIT_SIZE)
-	err := client.Conn.SetReadDeadline(time.Now().Add(constant.CLIENT_READ_LIMIT_TIME))
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	for {
 		var input model.PayloadInput
-		err = client.Conn.ReadJSON(&input)
+		err := client.Conn.ReadJSON(&input)
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway, 10054) {
 				c.unregisterClient(client)
 				break
 			}
 		}
-		payload := model.NewPayload(client, &input)
+		payload := c.chatService.ProcessPayload(client, &input)
 		c.payload <- &payload
 	}
 }
 
 // ClientWriteHandle Handle for writing message to each client
 func (c *ClientHandler) ClientWriteHandle(client *model.Client) {
-	// TODO: Use ticker to detect if there is respond from client, otherwise return
-	for {
-		select {
-		case msg := <-client.IncomingPayload:
-			err := client.Conn.WriteJSON(msg)
-			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
-					break
-				}
-				log.Println("Client ", *client, " Write Error: ", err)
-				continue
+	for msg := range client.IncomingPayload {
+		err := client.Conn.WriteJSON(msg)
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
+				break
 			}
+			log.Println("Client ", *client, " Write Error: ", err)
+			continue
 		}
 	}
 }
 
-func (c *ClientHandler) registerClient(client *model.Client) {
-	c.clientManager.AddClients(client)
+func (c *ClientHandler) registerClient(client *model.Client) error {
 	log.Println("Registering client: ", client)
-
-	_ = c.chatService.NewClient(client)
+	cerr := c.chatService.NewClient(client)
+	return cerr.Error()
 }
 
 func (c *ClientHandler) unregisterClient(client *model.Client) {
-	c.clientManager.RemoveClientById(client.Id)
 	log.Println("Unregistering client: ", client)
-
 	_ = c.chatService.RemoveClient(client)
 }

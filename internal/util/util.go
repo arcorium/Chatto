@@ -3,10 +3,10 @@ package util
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const contextTimeout = time.Second * 10
@@ -32,11 +32,6 @@ func GetContextValue[T any](key string, ctx *gin.Context) (*T, error) {
 	return value, nil
 }
 
-func HashPassword(password string) (string, error) {
-	result, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(result), err
-}
-
-func ValidatePassword(hash string, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+func EscapeMinesSymbols(str string) string {
+	return strings.ReplaceAll(str, "-", "\\-")
 }

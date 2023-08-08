@@ -27,12 +27,12 @@ type authController struct {
 }
 
 func (a authController) Route(router gin.IRouter, middlewares *middleware.Middleware) {
-	authRoute := router.Group("/auth", middlewares.UserAgent.Handle())
+	authRoute := router.Group("/auth", middlewares.UserAgent)
 	authRoute.POST("/login", a.Login)
 	authRoute.POST("/register", a.Register)
 	authRoute.POST("/refresh", a.RefreshToken)
 
-	authRoute.Use(middlewares.TokenValidation.Handle())
+	authRoute.Use(middlewares.TokenValidation)
 	authRoute.GET("/devices/", a.GetLoginDevice)
 	authRoute.POST("/logout", a.Logout)
 	authRoute.POST("/logout/:id", a.LogoutDevice)
